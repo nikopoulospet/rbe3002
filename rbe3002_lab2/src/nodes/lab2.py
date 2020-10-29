@@ -14,16 +14,17 @@ class Lab2:
         """
         ### REQUIRED CREDIT
         ### Initialize node, name it 'lab2'
-        # TODO
+        rospy.init_node('lab2')
+        rospy.Rate(10.0)
         ### Tell ROS that this node publishes Twist messages on the '/cmd_vel' topic
-        # TODO
+        self.TwistPublisher = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         ### Tell ROS that this node subscribes to Odometry messages on the '/odom' topic
+        self.OdometryPublisher = rospy.Publisher("/odom", Odometry, queue_size=1)
         ### When a message is received, call self.update_odometry
-        # TODO
+        self.OdometrySubscriber = rospy.Subscriber("/odem", Odometry, self.update_odometry, queue_size=1) 
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.go_to
-        # TODO
-        pass
+        self.PoseSubscriber = rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.go_to, queue_size=1)
 
 
 
