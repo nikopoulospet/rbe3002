@@ -19,12 +19,16 @@ class Lab2:
         ### Tell ROS that this node publishes Twist messages on the '/cmd_vel' topic
         self.TwistPublisher = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
         ### Tell ROS that this node subscribes to Odometry messages on the '/odom' topic
-        self.OdometryPublisher = rospy.Publisher("/odom", Odometry, queue_size=1)
         ### When a message is received, call self.update_odometry
-        self.OdometrySubscriber = rospy.Subscriber("/odem", Odometry, self.update_odometry, queue_size=1) 
+        self.OdometrySubscriber = rospy.Subscriber("/odom", Odometry, self.update_odometry) 
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.go_to
-        self.PoseSubscriber = rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.go_to, queue_size=1)
+        self.PoseSubscriber = rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.go_to)
+
+        ### ROBOT PARAMETERS
+        self.px = 0 # pose x
+        self.py = 0 # pose y
+        self.pth = 0 # yaw angle
 
 
 
@@ -83,9 +87,13 @@ class Lab2:
         :param msg [Odometry] The current odometry information.
         """
         ### REQUIRED CREDIT
-        # TODO
-        pass # delete this when you implement your code
-
+        self.px = msg.pose.pose.position.x
+        self.py = msg.pose.pose.position.y
+        quat_orig = msg.pose.pose.orientation # (x,y,z,w)
+        quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
+        (roll, pitch, yaw) = euler_from_quaternion(quat_list)
+        self.pth = yaw
+        
 
 
     def arc_to(self, position):
