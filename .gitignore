@@ -3,6 +3,8 @@ pathFinding
 turtlebot3_simulations
 turtlebot3_msgs
 turtlebot3
+learning_tf
+beginner_tutorials
 tensorflow-object-detection-ros
 CMakeLists.txt
 .rosinstall.bak
