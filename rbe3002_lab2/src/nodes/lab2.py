@@ -29,8 +29,6 @@ class Lab2:
         self.px = 0 # pose x
         self.py = 0 # pose y
         self.pth = 0 # yaw angle
-
-        ### ROBOT PARAMETERS
         self.maxWheelSpeed = 0.22 #physcial limit by turtlebot 3
         self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
         rospy.sleep(1)
