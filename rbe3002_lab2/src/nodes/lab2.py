@@ -75,15 +75,15 @@ class Lab2:
         init_y = self.py
         init_angle = self.yaw
         tolerance = 0.005
-        sleep_time = 0.050
+        sleep_time = 0.0250
         # start the robot driving
         self.send_speed(linear_speed, 0)
         # wait till the robot is at the correct pos within the given tolerance
         while abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) > tolerance:
-            rospy.loginfo(str(abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2))))
             rospy.sleep(sleep_time)
         # stop the robot from driving
         self.send_speed(0, 0)
+        rospy.loginfo("Done Driving")
 
 
 
@@ -95,22 +95,19 @@ class Lab2:
         :param angular_speed [float] [rad/s] The angular speed.
         """
         # peramiters
-        tolerance = 0.02
-        sleep_time = 0.050
+        tolerance = 0.01
+        sleep_time = 0.0250
         start_angle = self.yaw
         # start the robot spinning
-        self.send_speed(0,aspeed)
+        d = -1
+        if angle < 0: d = 1
+        self.send_speed(0,aspeed*d)
         # wait till the robot is at the correct angle within the given tolerance
-<<<<<<< HEAD
-        while((abs(angle - self.yaw)) > tolerance):
-=======
         while((abs(start_angle - (self.yaw + angle))) > tolerance):
->>>>>>> 6183874c8bf96d5004fa1c5febe95795839ba304
             rospy.sleep(sleep_time)
         # stop the robot from spinning
-        rospy.loginfo("Done Rotating")
         self.send_speed(0,0)
-
+        rospy.loginfo("Done Rotating")
 
 
     def go_to(self, msg):
@@ -119,8 +116,21 @@ class Lab2:
         This method is a callback bound to a Subscriber.
         :param msg [PoseStamped] The target pose.
         """
-        ### REQUIRED CREDIT
-        pass # delete this when you implement your code
+        target_x = msg.pose.position.x
+        target_y = msg.pose.position.y
+        quat_orig = msg.pose.orientation # (x,y,z,w)
+        quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
+        (roll, pitch, target_yaw) = euler_from_quaternion(quat_list)
+
+        to_target_angle = self.yaw - math.atan2(target_y-self.py,target_x-self.px)
+        rospy.loginfo(str(to_target_angle))
+        self.rotate(to_target_angle, 0.2)
+
+        to_target_distance = math.sqrt((target_x-self.px)**2 + (target_y-self.py)**2)
+        self.drive(to_target_distance, 0.1)
+        
+        to_target_end_angle = self.yaw - target_yaw
+        self.rotate(to_target_end_angle, 0.2)
 
 
 
@@ -169,6 +179,4 @@ class Lab2:
 if __name__ == '__main__':
     robot = Lab2()
     rospy.sleep(1)
-    #robot.send_speed(0.1,0.1) testing the send_speed Method
-    robot.drive(0.5, 0.1)
     rospy.spin()
