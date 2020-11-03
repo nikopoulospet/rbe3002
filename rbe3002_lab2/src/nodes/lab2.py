@@ -167,9 +167,21 @@ class Lab2:
         :param distance     [float] [m]   The distance to cover.
         :param linear_speed [float] [m/s] The maximum forward linear speed.
         """
-        ### EXTRA CREDIT
-        # TODO
-        pass # delete this when you implement your code
+        init_x = self.px
+        init_y = self.py
+
+        tolerance = 0.005
+        sleep_time = 0.0250
+
+        # equation = -4 * (t - 0.5)**2 + 1
+        # wait till the robot is at the correct pos within the given tolerance
+        while abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) > tolerance:
+            t = abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2))
+            self.send_speed(linear_speed * (-3.9 * (t - 0.5)**2 + 1), 0)
+            rospy.sleep(sleep_time)
+        # stop the robot from driving
+        self.send_speed(0, 0)
+        rospy.loginfo("Done Smooth Driving")
 
 
 
@@ -179,4 +191,5 @@ class Lab2:
 if __name__ == '__main__':
     robot = Lab2()
     rospy.sleep(1)
+    robot.smooth_drive(1,0.2)
     rospy.spin()
