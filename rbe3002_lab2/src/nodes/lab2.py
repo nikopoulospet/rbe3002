@@ -14,10 +14,10 @@ class Lab2:
         """
         ### REQUIRED CREDIT
         ### Initialize node, name it 'lab2'
-        rospy.init_node('lab2')
+        rospy.init_node('lab2', anonymous=True)
         rospy.Rate(10.0)
         ### Tell ROS that this node publishes Twist messages on the '/cmd_vel' topic
-        self.TwistPublisher = rospy.Publisher("/cmd_vel", Twist, queue_size=1)
+        self.TwistPublisher = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         ### Tell ROS that this node subscribes to Odometry messages on the '/odom' topic
         ### When a message is received, call self.update_odometry
         self.OdometrySubscriber = rospy.Subscriber("/odom", Odometry, self.update_odometry) 
@@ -30,6 +30,11 @@ class Lab2:
         self.py = 0 # pose y
         self.pth = 0 # yaw angle
 
+        ### ROBOT PARAMETERS
+        self.maxWheelSpeed = 0.22 #physcial limit by turtlebot 3
+        self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
+        rospy.sleep(1)
+        rospy.loginfo("Lab 2 Node Initalized")
 
 
     def send_speed(self, linear_speed, angular_speed):
@@ -39,11 +44,23 @@ class Lab2:
         :param angular_speed [float] [rad/s] The angular speed for rotating around the body center.
         """
         ### REQUIRED CREDIT
+        if abs(linear_speed) > self.maxWheelSpeed:
+            linear_speed = self.maxWheelSpeed * (linear_speed/abs(linear_speed))
+        if abs(angular_speed) > self.maxAngularSpeed:
+            angular_speed = self.maxAngularSpeed * (angular_speed/abs(angular_speed))
+        
         ### Make a new Twist message
-        # TODO
+        vel_msg = Twist()
+            #Linear
+        vel_msg.linear.x = linear_speed
+        vel_msg.linear.y = 0.0
+        vel_msg.linear.z = 0.0
+            #Angular
+        vel_msg.angular.x = 0.0
+        vel_msg.angular.y = 0.0
+        vel_msg.angular.z = angular_speed
         ### Publish the message
-        # TODO
-        pass # delete this when you implement your code
+        self.TwistPublisher.publish(vel_msg)
 
     
         
@@ -123,4 +140,7 @@ class Lab2:
         rospy.spin()
 
 if __name__ == '__main__':
-    Lab2().run()
+    robot = Lab2()
+    rospy.sleep(1)
+    #robot.send_speed(0.1,0.1) testing the send_speed Method
+    rospy.spin()
