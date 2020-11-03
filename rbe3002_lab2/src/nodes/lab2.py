@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 import rospy
+import math
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
@@ -68,8 +69,21 @@ class Lab2:
         :param distance     [float] [m]   The distance to cover.
         :param linear_speed [float] [m/s] The forward linear speed.
         """
-        ### REQUIRED CREDIT
-        pass # delete this when you implement your code
+
+        init_x = self.px
+        init_y = self.py
+        init_angle = self.yaw
+        tolerance = 0.005
+        sleep_time = 0.050
+        # start the robot driving
+        self.send_speed(linear_speed, 0)
+        # wait till the robot is at the correct pos within the given tolerance
+        while abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) > tolerance:
+            rospy.loginfo(str(abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2))))
+            rospy.sleep(sleep_time)
+        # stop the robot from driving
+        self.send_speed(0, 0)
+
 
 
 
@@ -85,7 +99,7 @@ class Lab2:
         # start the robot spinning
         self.send_speed(0,aspeed)
         # wait till the robot is at the correct angle within the given tolerance
-        while((abs(angle) - abs(self.yaw)) > tolerance):
+        while((abs(angle - self.yaw)) > tolerance):
             rospy.sleep(sleep_time)
         # stop the robot from spinning
         self.send_speed(0,0)
@@ -149,5 +163,5 @@ if __name__ == '__main__':
     robot = Lab2()
     rospy.sleep(1)
     #robot.send_speed(0.1,0.1) testing the send_speed Method
-    robot.rotate(3.14, 0.05)
+    robot.drive(0.5, 0.1)
     rospy.spin()
