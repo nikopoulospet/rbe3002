@@ -28,7 +28,7 @@ class Lab2:
         ### ROBOT PARAMETERS
         self.px = 0 # pose x
         self.py = 0 # pose y
-        self.pth = 0 # yaw angle
+        self.yaw = 0 # yaw angle
         self.maxWheelSpeed = 0.22 #physcial limit by turtlebot 3
         self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
         rospy.sleep(1)
@@ -79,8 +79,16 @@ class Lab2:
         :param angle         [float] [rad]   The distance to cover.
         :param angular_speed [float] [rad/s] The angular speed.
         """
-        ### REQUIRED CREDIT
-        pass # delete this when you implement your code
+        # peramiters
+        tolerance = 0.02
+        sleep_time = 0.050
+        # start the robot spinning
+        self.send_speed(0,aspeed)
+        # wait till the robot is at the correct angle within the given tolerance
+        while((abs(angle) - abs(self.yaw)) > tolerance):
+            rospy.sleep(sleep_time)
+        # stop the robot from spinning
+        self.send_speed(0,0)
 
 
 
@@ -107,7 +115,7 @@ class Lab2:
         quat_orig = msg.pose.pose.orientation # (x,y,z,w)
         quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
         (roll, pitch, yaw) = euler_from_quaternion(quat_list)
-        self.pth = yaw
+        self.yaw = yaw
         
 
 
@@ -141,4 +149,5 @@ if __name__ == '__main__':
     robot = Lab2()
     rospy.sleep(1)
     #robot.send_speed(0.1,0.1) testing the send_speed Method
+    robot.rotate(3.14, 0.05)
     rospy.spin()
