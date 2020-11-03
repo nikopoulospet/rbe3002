@@ -12,6 +12,7 @@ class Lab2:
         """
         Class constructor
         """
+        rospy.sleep(4)
         ### REQUIRED CREDIT
         ### Initialize node, name it 'lab2'
         rospy.init_node('lab2', anonymous=True)
@@ -82,12 +83,14 @@ class Lab2:
         # peramiters
         tolerance = 0.02
         sleep_time = 0.050
+        start_angle = self.yaw
         # start the robot spinning
         self.send_speed(0,aspeed)
         # wait till the robot is at the correct angle within the given tolerance
-        while((abs(angle) - abs(self.yaw)) > tolerance):
+        while((abs(start_angle - (self.yaw + angle))) > tolerance):
             rospy.sleep(sleep_time)
         # stop the robot from spinning
+        rospy.loginfo("Done Rotating")
         self.send_speed(0,0)
 
 
@@ -149,5 +152,5 @@ if __name__ == '__main__':
     robot = Lab2()
     rospy.sleep(1)
     #robot.send_speed(0.1,0.1) testing the send_speed Method
-    robot.rotate(3.14, 0.05)
+    robot.rotate(3.14, 0.1)
     rospy.spin()
