@@ -5,6 +5,7 @@ turtlebot3_msgs
 turtlebot3
 learning_tf
 beginner_tutorials
+RBE3002_Turtlebot
 tensorflow-object-detection-ros
 CMakeLists.txt
 .rosinstall.bak
