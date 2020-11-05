@@ -72,7 +72,7 @@ class Lab2:
         init_x = self.px
         init_y = self.py
         init_angle = self.yaw
-        tolerance = 0.005
+        tolerance = 0.01
         sleep_time = 0.0250
         # start the robot driving
         self.send_speed(linear_speed, 0)
@@ -159,37 +159,7 @@ class Lab2:
         Drives to a given position in an arc.
         :param msg [PoseStamped] The target pose.
         """
-        init_x = self.px
-        init_y = self.py
-        init_yaw = self.yaw
-
-        target_x = position.pose.position.x
-        target_y = position.pose.position.y
-        quat_orig = position.pose.orientation # (x,y,z,w)
-        quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
-        (roll, pitch, target_yaw) = euler_from_quaternion(quat_list)
-        
-        distance = math.sqrt((init_x-target_x)**2 + (init_y-target_y)**2) 
-        linear_speed = 0.2
-        angular_speed = 0
-        tolerance = 0.005
-        sleep_time = 0.0250
-
-        run = True
-        #drive and arc
-        while run:
-            if abs(math.sqrt((self.px - target_x) ** 2 + (self.py - target_y) ** 2)) <= tolerance:
-                run = False
-            else:
-                linear_speed = 0.2
-                angular_error = math.atan2(target_y-self.py,target_x-self.px) - self.yaw
-                angular_effort = angular_error * 10
-                self.send_speed(linear_speed,angular_effort)
-                rospy.loginfo(str(angular_error))
-
-        #spin in place 
-        self.rotate(target_yaw - init_yaw, 0.2)
-        self.send_speed(0,0)
+        pass
 
 
     def smooth_drive(self, distance, linear_speed):
@@ -229,5 +199,7 @@ class Lab2:
 if __name__ == '__main__':
     robot = Lab2()
     rospy.sleep(1)
-    robot.smooth_drive(5,0.2)
+    #robot.drive(1,0.2)
+    #robot.rotate(math.pi,0.2)
+    robot.smooth_drive(1,0.2)
     rospy.spin()
