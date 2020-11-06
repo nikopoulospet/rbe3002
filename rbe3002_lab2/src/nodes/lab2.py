@@ -68,26 +68,31 @@ class Lab2:
         :param distance     [float] [m]   The distance to cover.
         :param linear_speed [float] [m/s] The forward linear speed.
         """
-
+        # save the inital conditions of the robot
         init_x = self.px
         init_y = self.py
         init_angle = self.yaw
-        tolerance = 0.005
+        # drive() peramiters
+        tolerance = 0.01
         sleep_time = 0.0250
         # start the robot driving
         self.send_speed(linear_speed, 0)
-        # wait till the robot is at the correct pos within the given tolerance
+       
+        # control loop for driving
         run = True
         while run:
+            # wait till the robot is at the correct distance away within the given tolerance
             if abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) <= tolerance:
+                # end the control loop
                 run = False
             else:
+                # control the robot as it drives
                 rospy.sleep(sleep_time)
+                # P control on the robots yaw
                 angular_error = init_angle - self.yaw
-                angular_effort = angular_error * 10
-                rospy.loginfo(str(angular_effort))
+                angular_effort = angular_error * 1
+                # send the speed
                 self.send_speed(linear_speed,angular_effort)
-                rospy.sleep(sleep_time)
                 
         # stop the robot from driving
         self.send_speed(0, 0)
@@ -102,10 +107,12 @@ class Lab2:
         # peramiters
         tolerance = 0.01
         sleep_time = 0.0250
+        # intial robot conition
         start_angle = self.yaw
-        # start the robot spinning
+        # check to see which direction the robot should rotate
         d = -1
         if angle < 0: d = 1
+        # start the robot spinning
         self.send_speed(0,aspeed*d)
         # wait till the robot is at the correct angle within the given tolerance
         while((abs(start_angle - (self.yaw + angle))) > tolerance):
@@ -121,18 +128,24 @@ class Lab2:
         This method is a callback bound to a Subscriber.
         :param msg [PoseStamped] The target pose.
         """
+        # Peramiters
         target_x = msg.pose.position.x
         target_y = msg.pose.position.y
         quat_orig = msg.pose.orientation # (x,y,z,w)
         quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
         (roll, pitch, target_yaw) = euler_from_quaternion(quat_list)
-
+        # ROTATE 1
+        # calculate the angle between current yaw and the target position
         to_target_angle = self.yaw - math.atan2(target_y-self.py,target_x-self.px)
+        #Rotate the robot
         self.rotate(to_target_angle, 0.2)
-
+        # DRIVE
+        # calculate the distance between the current position and target position
         to_target_distance = math.sqrt((target_x-self.px)**2 + (target_y-self.py)**2)
+        # drive the calculated distance
         self.smooth_drive(to_target_distance, 0.2)
-        
+        # ROTATE 2
+        # calculate the angle between current yaw and the target final yaw
         to_target_end_angle = self.yaw - target_yaw
         self.rotate(to_target_end_angle, 0.2)
 
@@ -144,12 +157,14 @@ class Lab2:
         This method is a callback bound to a Subscriber.
         :param msg [Odometry] The current odometry information.
         """
-        ### REQUIRED CREDIT
+        # read the pos from the message
         self.px = msg.pose.pose.position.x
         self.py = msg.pose.pose.position.y
+        # convert the quarerniaon to a euler angle
         quat_orig = msg.pose.pose.orientation # (x,y,z,w)
         quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
         (roll, pitch, yaw) = euler_from_quaternion(quat_list)
+        # update the save yaw
         self.yaw = yaw
         
 
@@ -159,37 +174,7 @@ class Lab2:
         Drives to a given position in an arc.
         :param msg [PoseStamped] The target pose.
         """
-        init_x = self.px
-        init_y = self.py
-        init_yaw = self.yaw
-
-        target_x = position.pose.position.x
-        target_y = position.pose.position.y
-        quat_orig = position.pose.orientation # (x,y,z,w)
-        quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
-        (roll, pitch, target_yaw) = euler_from_quaternion(quat_list)
-        
-        distance = math.sqrt((init_x-target_x)**2 + (init_y-target_y)**2) 
-        linear_speed = 0.2
-        angular_speed = 0
-        tolerance = 0.005
-        sleep_time = 0.0250
-
-        run = True
-        #drive and arc
-        while run:
-            if abs(math.sqrt((self.px - target_x) ** 2 + (self.py - target_y) ** 2)) <= tolerance:
-                run = False
-            else:
-                linear_speed = 0.2
-                angular_error = math.atan2(target_y-self.py,target_x-self.px) - self.yaw
-                angular_effort = angular_error * 10
-                self.send_speed(linear_speed,angular_effort)
-                rospy.loginfo(str(angular_error))
-
-        #spin in place 
-        self.rotate(target_yaw - init_yaw, 0.2)
-        self.send_speed(0,0)
+        pass
 
 
     def smooth_drive(self, distance, linear_speed):
@@ -198,24 +183,31 @@ class Lab2:
         :param distance     [float] [m]   The distance to cover.
         :param linear_speed [float] [m/s] The maximum forward linear speed.
         """
+        # the inital robot condition
         init_x = self.px
         init_y = self.py
         init_angle = self.yaw
-
+        # smooth drive peramiters
         tolerance = 0.005
         sleep_time = 0.0250
 
-        # equation = -4 * (t - 0.5)**2 + 1
-        # wait till the robot is at the correct pos within the given tolerance
+        # equation = -50 * (t - 0.5)**6 + 1
+        
+        #start of smooth drive control loop
         run = True
         while run:
+            # wait till the robot is at the correct pos within the given tolerance
             if abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) <= tolerance:
                 run = False
-            else:    
-                t = abs(math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2))/distance
+            else:
+                # calculate the persentage of the desired distance travled (0 -> 1)
+                t = abs(math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) / distance
+                # P control on the the robots yaw
                 angular_error = init_angle - self.yaw
                 angular_effort = angular_error * 10
+                # send the speeds the linar speed is mulitplied by the scaler based on t
                 self.send_speed(linear_speed * (-50 * (t - 0.5)**6 + 1), angular_effort)
+                # wait
                 rospy.sleep(sleep_time)
         # stop the robot from driving
         self.send_speed(0, 0)
@@ -229,5 +221,7 @@ class Lab2:
 if __name__ == '__main__':
     robot = Lab2()
     rospy.sleep(1)
-    robot.smooth_drive(5,0.2)
+    #robot.drive(1,0.2)
+    #robot.rotate(math.pi,0.2)
+    robot.smooth_drive(1,0.2)
     rospy.spin()
