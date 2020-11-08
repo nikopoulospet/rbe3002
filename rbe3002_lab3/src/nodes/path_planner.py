@@ -81,8 +81,18 @@ class PathPlanner:
         :param y       [int]           The cell Y coordinate.
         :return        [Point]         The position in the world.
         """
-        ### REQUIRED CREDIT
-        pass
+        # get the orgion in the real world
+        orginX = mapdata.MapMetaData.Pose.Point.x
+        orginY = mapdata.MapMetaData.Pose.Point.y
+        # get the size of each cell
+        resolution = mapdata.MapMetaData.resolution
+        # get the real world point
+        real_world_x = resolution * x + orginX
+        real_world_y = resolution * y + orginY
+        # make the real world Point
+        point = Point(real_world_x, real_world_y, 0.)
+        # return the point
+        return  point
 
 
         
@@ -94,8 +104,25 @@ class PathPlanner:
         :param wp      [Point]         The world coordinate.
         :return        [(int,int)]     The cell position as a tuple.
         """
-        ### REQUIRED CREDIT
-        pass
+        # get the world points
+        wpX = wp.x
+        wpY = wp.y
+        # get the orgion in the real world
+        orginX = mapdata.MapMetaData.Pose.Point.x
+        orginY = mapdata.MapMetaData.Pose.Point.y
+        # get the resolution of each cell
+        resolution = mapdata.MapMetaData.resolution
+        # get the wp distance from the maps world orgin
+        x_offest_from_cell_orgin = wpX - orginX
+        y_offest_from_cell_orgin = wpY - orginY
+        # find the distance from the cell's edge
+        x_remainder = x_offest_from_cell_orgin % resolution
+        y_remainder = y_offest_from_cell_orgin % resolution
+        # find the index of the cell
+        x_cell_index = (x_offest_from_cell_orgin - x_remainder) / resolution
+        y_cell_index = (y_offest_from_cell_orgin - y_remainder) / resolution
+        # return the cell
+        return [(x_cell_index,y_cell_index)]
 
 
         
@@ -145,8 +172,27 @@ class PathPlanner:
         :param y       [int]           The Y coordinate in the grid.
         :return        [[(int,int)]]   A list of walkable 4-neighbors.
         """
-        ### REQUIRED CREDIT
-        pass
+        neighbors = []
+
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y)
+            neighbor_left = PathPlanner.grid_to_index(x - 1, y)
+            neighbors.append(neighbor_left)
+
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y)
+            neighbor_right = PathPlanner.grid_to_index(x + 1, y)
+            neighbors.append(neighbor_right)
+
+        if PathPlanner.is_cell_walkable(mapdata, x, y + 1)
+            neighbor_top = PathPlanner.grid_to_index(x, y + 1)
+            neighbors.append(neighbor_top)
+
+        if PathPlanner.is_cell_walkable(mapdata, x, y - 1)
+            neighbor_down = PathPlanner.grid_to_index(x, y - 1)
+            neighbors.append(neighbor_down)
+        
+        return neighbors
+        
+        
 
     
     
@@ -159,8 +205,41 @@ class PathPlanner:
         :param y       [int]           The Y coordinate in the grid.
         :return        [[(int,int)]]   A list of walkable 8-neighbors.
         """
-        ### REQUIRED CREDIT
-        pass
+        neighbors = []
+
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y + 1)
+            neighbor1 = PathPlanner.grid_to_index(x - 1, y + 1)
+            neighbors.append(neighbor1)
+
+        if PathPlanner.is_cell_walkable(mapdata, x , y + 1)
+            neighbor2 = PathPlanner.grid_to_index(x, y + 1)
+            neighbors.append(neighbor2)
+
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y + 1)
+            neighbor3 = PathPlanner.grid_to_index(x + 1, y + 1)
+            neighbors.append(neighbor3)
+
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y)
+            neighbor4 = PathPlanner.grid_to_index(x - 1, y)
+            neighbors.append(neighbor4)
+
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y)
+            neighbor5 = PathPlanner.grid_to_index(x + 1, y)
+            neighbors.append(neighbor5)
+
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y - 1)
+            neighbor6 = PathPlanner.grid_to_index(x - 1, y - 1)
+            neighbors.append(neighbor6)
+
+        if PathPlanner.is_cell_walkable(mapdata, x, y - 1)
+            neighbor7 = PathPlanner.grid_to_index(x, y - 1)
+            neighbors.append(neighbor7)
+
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y - 1)
+            neighbor8 = PathPlanner.grid_to_index(x + 1, y - 1)
+            neighbors.append(neighbor8)
+        
+        return neighbors
 
     
     
