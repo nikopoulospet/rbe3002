@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-
+#!/usr/bin/env python2
 import math
 import rospy
 from nav_msgs.srv import GetPlan, GetMap
@@ -44,8 +43,8 @@ class PathPlanner:
         :param y [int] The cell Y coordinate.
         :return  [int] The index.
         """
-        ### REQUIRED CREDIT
-        pass
+        
+        return y * width + x
 
 
 
@@ -157,6 +156,14 @@ class PathPlanner:
         """
         ### REQUIRED CREDIT
         rospy.loginfo("Requesting the map")
+        rospy.wait_for_service('static_map')
+        try:
+            static_map_service = rospy.ServiceProxy('static_map', GetMap)
+            responce = static_map_service()
+            return responce.map
+        except:
+            print("service call failed: %s"%e)
+            return None
 
 
 
@@ -220,6 +227,7 @@ class PathPlanner:
         mapdata = PathPlanner.request_map()
         if mapdata is None:
             return Path()
+        print(mapdata)
         ## Calculate the C-space and publish it
         cspacedata = self.calc_cspace(mapdata, 1)
         ## Execute A*
@@ -242,4 +250,4 @@ class PathPlanner:
 
         
 if __name__ == '__main__':
-    PathPlanner().run()
+    PathPlanner().request_map()
