@@ -83,8 +83,18 @@ class PathPlanner:
         :param y       [int]           The cell Y coordinate.
         :return        [Point]         The position in the world.
         """
-        ### REQUIRED CREDIT
-        pass
+        # get the orgion in the real world
+        orginX = mapdata.MapMetaData.Pose.Point.x
+        orginY = mapdata.MapMetaData.Pose.Point.y
+        # get the size of each cell
+        resolution = mapdata.MapMetaData.resolution
+        # get the real world point
+        real_world_x = resolution * x + orginX
+        real_world_y = resolution * y + orginY
+        # make the real world Point
+        point = Point(real_world_x, real_world_y, 0.)
+        # return the point
+        return  point
 
 
         
