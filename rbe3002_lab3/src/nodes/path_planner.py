@@ -6,8 +6,6 @@ from nav_msgs.srv import GetPlan, GetMap
 from nav_msgs.msg import GridCells, OccupancyGrid, Path
 from geometry_msgs.msg import Point, Pose, PoseStamped
 
-
-
 class PathPlanner:
 
 
@@ -125,8 +123,13 @@ class PathPlanner:
         :param y       [int]           The Y coordinate in the grid.
         :return        [boolean]       True if the cell is walkable, False otherwise
         """
-        ### REQUIRED CREDIT
-        pass
+        occupied_thresh = 65
+        free_thresh = 19.6
+        if x < mapdata.MapMetaData.width and x >= 0 and y < mapdata.MapMetaData.height and y >= 0:
+            cell = PathPlanner.grid_to_index(x,y)
+            return cell < free_thresh
+        return False
+        
 
                
 
