@@ -64,8 +64,13 @@ class PathPlanner:
         :param y2 [int or float] Y coordinate of second point.
         :return   [float]        The distance.
         """
-        ### REQUIRED CREDIT
-        pass
+        # find the change in x and the change in y
+        dx = x2 - x1
+        dy = y2 - y1
+        # find the distance using trig
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+        # return the distance
+        return distance
         
 
 
