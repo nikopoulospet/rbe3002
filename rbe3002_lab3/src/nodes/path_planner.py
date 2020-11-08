@@ -107,10 +107,13 @@ class PathPlanner:
         :param  path   [[(int,int)]]   The path as a list of tuples (cell coordinates).
         :return        [[PoseStamped]] The path as a list of PoseStamped (world coordinates).
         """
-        ### REQUIRED CREDIT
-        pass
-
-    
+        poses = []
+        for pose in path:
+            point = PathPlanner.grid_to_world(mapdata,pose[0],pose[1])
+            pose_stamped = PoseStamped()
+            pose_stamped.pose.position = point
+            poses.append(pose_stamped)
+        return poses
 
     @staticmethod
     def is_cell_walkable(mapdata, x, y):
@@ -126,7 +129,7 @@ class PathPlanner:
         occupied_thresh = 65
         free_thresh = 19.6
         if x < mapdata.MapMetaData.width and x >= 0 and y < mapdata.MapMetaData.height and y >= 0:
-            cell = PathPlanner.grid_to_index(x,y)
+            cell = PathPlanner.grid_to_index(mapdata,x,y)
             return cell < free_thresh
         return False
         
