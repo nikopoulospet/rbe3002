@@ -27,7 +27,7 @@ class PathPlanner:
         self.C_spacePublisher = rospy.Publisher("/path_planner/cspace", GridCells, queue_size = 1)
         ## Create publishers for A* (expanded cells, frontier, ...)
         ## Choose a the topic names, the message type is GridCells
-        seld.A_starPublisher = rospy.Publisher("/astar_path", GridCells, queue_size = 1)
+        self.A_starPublisher = rospy.Publisher("/astar_path", GridCells, queue_size = 1)
         ## Initialize the request counter
         self.requestCounter = 0
         ## Sleep to allow roscore to do some housekeeping
