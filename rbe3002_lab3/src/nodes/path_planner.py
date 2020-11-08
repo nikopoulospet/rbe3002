@@ -5,6 +5,7 @@ import rospy
 from nav_msgs.srv import GetPlan, GetMap
 from nav_msgs.msg import GridCells, OccupancyGrid, Path
 from geometry_msgs.msg import Point, Pose, PoseStamped
+from tf.transformations import quaternion_from_euler
 
 class PathPlanner:
 
@@ -174,19 +175,19 @@ class PathPlanner:
         """
         neighbors = []
 
-        if PathPlanner.is_cell_walkable(mapdata, x - 1, y)
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
             neighbor_left = PathPlanner.grid_to_index(x - 1, y)
             neighbors.append(neighbor_left)
 
-        if PathPlanner.is_cell_walkable(mapdata, x + 1, y)
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
             neighbor_right = PathPlanner.grid_to_index(x + 1, y)
             neighbors.append(neighbor_right)
 
-        if PathPlanner.is_cell_walkable(mapdata, x, y + 1)
+        if PathPlanner.is_cell_walkable(mapdata, x, y + 1):
             neighbor_top = PathPlanner.grid_to_index(x, y + 1)
             neighbors.append(neighbor_top)
 
-        if PathPlanner.is_cell_walkable(mapdata, x, y - 1)
+        if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
             neighbor_down = PathPlanner.grid_to_index(x, y - 1)
             neighbors.append(neighbor_down)
         
@@ -207,35 +208,35 @@ class PathPlanner:
         """
         neighbors = []
 
-        if PathPlanner.is_cell_walkable(mapdata, x - 1, y + 1)
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y + 1):
             neighbor1 = PathPlanner.grid_to_index(x - 1, y + 1)
             neighbors.append(neighbor1)
 
-        if PathPlanner.is_cell_walkable(mapdata, x , y + 1)
+        if PathPlanner.is_cell_walkable(mapdata, x , y + 1):
             neighbor2 = PathPlanner.grid_to_index(x, y + 1)
             neighbors.append(neighbor2)
 
-        if PathPlanner.is_cell_walkable(mapdata, x + 1, y + 1)
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y + 1):
             neighbor3 = PathPlanner.grid_to_index(x + 1, y + 1)
             neighbors.append(neighbor3)
 
-        if PathPlanner.is_cell_walkable(mapdata, x - 1, y)
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
             neighbor4 = PathPlanner.grid_to_index(x - 1, y)
             neighbors.append(neighbor4)
 
-        if PathPlanner.is_cell_walkable(mapdata, x + 1, y)
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
             neighbor5 = PathPlanner.grid_to_index(x + 1, y)
             neighbors.append(neighbor5)
 
-        if PathPlanner.is_cell_walkable(mapdata, x - 1, y - 1)
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y - 1):
             neighbor6 = PathPlanner.grid_to_index(x - 1, y - 1)
             neighbors.append(neighbor6)
 
-        if PathPlanner.is_cell_walkable(mapdata, x, y - 1)
+        if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
             neighbor7 = PathPlanner.grid_to_index(x, y - 1)
             neighbors.append(neighbor7)
 
-        if PathPlanner.is_cell_walkable(mapdata, x + 1, y - 1)
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y - 1):
             neighbor8 = PathPlanner.grid_to_index(x + 1, y - 1)
             neighbors.append(neighbor8)
         
@@ -303,11 +304,35 @@ class PathPlanner:
     def path_to_message(self, mapdata, path):
         """
         Takes a path on the grid and returns a Path message.
-        :param path [[(int,int)]] The path on the grid (a list of tuples)
-        :return     [Path]        A Path message (the coordinates are expressed in the world)
+        :param mapdata  [OccupancyGrid] The map data.
+        :param path     [[(int,int)]] The path on the grid (a list of tuples)
+        :return         [Path]        A Path message (the coordinates are expressed in the world)
         """
-        ### REQUIRED CREDIT
+        # initilize the path variable
+        world_path = Path()
+        # loop through the path
+        for index in path:
+            # make the current pose
+            stamped_pose = PoseStamped()
+            # find the point in the real world
+            world_point = self.grid_to_world(mapdata, index(0), index(1))
+            # add the real world point to the pose
+            stamped_pose.pose.point = world_point
+            # add the pose to the path
+            world_path.poses.append(stamped_pose)
+            # if this isnt the first point 
+            if( len(world_path.poses) > 1):
+                # get the last world point
+                last_world_point = self.grid_to_world(mapdata, lastIndex(0), lastIndex(1))
+                # calculate the angel between the last and current point
+                angle = math.atan2(last_world_point.y-world_point.y, last_world_point.x-world_point.x)
+                # convert the angle to quaternion and set it as the angle for the current node
+                stamped_pose.pose.quaternion = quaternion_from_euler(yaw, 0, 0)
+
+            lastIndex = index
+        
         rospy.loginfo("Returning a Path message")
+        return world_path
 
 
         
@@ -329,7 +354,7 @@ class PathPlanner:
         goal  = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
         path  = self.a_star(cspacedata, start, goal)
         ## Optimize waypoints
-        waypoints = PathPlanner.optimize_path(path)
+        waypoints = PathPlanner.(path)
         ## Return a Path message
         return self.path_to_message(mapdata, waypoints)
 
