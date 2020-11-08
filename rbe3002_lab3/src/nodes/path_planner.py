@@ -21,15 +21,15 @@ class PathPlanner:
         rospy.init_node("path_planner")
         ## Create a new service called "plan_path" that accepts messages of
         ## type GetPlan and calls self.plan_path() when a message is received
-        # TODO
+        self.path_planSubscriber = rospy.Subscriber("plan_path", Path, self.plan_path())
         ## Create a publisher for the C-space (the enlarged occupancy grid)
         ## The topic is "/path_planner/cspace", the message type is GridCells
-        # TODO
+        self.C_spacePublisher = rospy.Publisher("/path_planner/cspace", GridCells, queue_size = 1)
         ## Create publishers for A* (expanded cells, frontier, ...)
         ## Choose a the topic names, the message type is GridCells
-        # TODO
+        self.A_starPublisher = rospy.Publisher("/astar_path", GridCells, queue_size = 1)
         ## Initialize the request counter
-        # TODO
+        self.requestCounter = 0
         ## Sleep to allow roscore to do some housekeeping
         rospy.sleep(1.0)
         rospy.loginfo("Path planner node ready")
