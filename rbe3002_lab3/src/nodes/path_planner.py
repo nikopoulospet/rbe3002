@@ -195,11 +195,28 @@ class PathPlanner:
         rospy.loginfo("Calculating C-Space")
         ## Go through each cell in the occupancy grid
         ## Inflate the obstacles where necessary
-        # TODO
+        padded_grid = []
+        ## Calculate the kernel based on padding param
+        kernel = []
+        size = 1 + 2*int(padding)
+        center = int(padding) + 1
+        for y in range(size):
+            row = []
+            for x in range(size):
+                row.append(1)
+            kernel.append(row)
+        ## Apply kernel to grid and create padded grid
+        for cell_num in range(len(mapdata.data)):
+            
+
         ## Create a GridCells message and publish it
-        # TODO
+        grid = GridCells()
+        grid.cells = padded_grid
+        grid.cell_width = mapdata.MapMetaData.width
+        grid.cell_height = mapdata.MapMetaData.height
+        self.C_spacePublisher.publish(grid)
         ## Return the C-space
-        pass
+        return padded_grid
 
 
     
