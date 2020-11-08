@@ -21,7 +21,7 @@ class PathPlanner:
         rospy.init_node("path_planner")
         ## Create a new service called "plan_path" that accepts messages of
         ## type GetPlan and calls self.plan_path() when a message is received
-        self.path_planSubscriber = rospy.Subscriber("plan_path", Path, self.plan_path())
+        self.path_planSubscriber = rospy.Subscriber("plan_path", Path, self.plan_path)
         ## Create a publisher for the C-space (the enlarged occupancy grid)
         ## The topic is "/path_planner/cspace", the message type is GridCells
         self.C_spacePublisher = rospy.Publisher("/path_planner/cspace", GridCells, queue_size = 1)
@@ -40,12 +40,17 @@ class PathPlanner:
     def grid_to_index(mapdata, x, y):
         """
         Returns the index corresponding to the given (x,y) coordinates in the occupancy grid.
+        :param mapdata [OccupancyGrid] The map information.
         :param x [int] The cell X coordinate.
         :param y [int] The cell Y coordinate.
         :return  [int] The index.
         """
-        ### REQUIRED CREDIT
-        pass
+        # get the width fro mthe map data
+        width = mapdata.MapMetaData.width
+        # calculate the index from the given x y cordantes and the width
+        index = y * width + x
+        # return the index
+        return index
 
 
 
