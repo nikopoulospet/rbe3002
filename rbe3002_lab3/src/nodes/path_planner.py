@@ -106,8 +106,25 @@ class PathPlanner:
         :param wp      [Point]         The world coordinate.
         :return        [(int,int)]     The cell position as a tuple.
         """
-        ### REQUIRED CREDIT
-        pass
+        # get the world points
+        wpX = wp.x
+        wpY = wp.y
+        # get the orgion in the real world
+        orginX = mapdata.MapMetaData.Pose.Point.x
+        orginY = mapdata.MapMetaData.Pose.Point.y
+        # get the resolution of each cell
+        resolution = mapdata.MapMetaData.resolution
+        # get the wp distance from the maps world orgin
+        x_offest_from_cell_orgin = wpX - orginX
+        y_offest_from_cell_orgin = wpY - orginY
+        # find the distance from the cell's edge
+        x_remainder = x_offest_from_cell_orgin % resolution
+        y_remainder = y_offest_from_cell_orgin % resolution
+        # find the index of the cell
+        x_cell_index = (x_offest_from_cell_orgin - x_remainder) / resolution
+        y_cell_index = (y_offest_from_cell_orgin - y_remainder) / resolution
+        # return the cell
+        return [(x_cell_index,y_cell_index)]
 
 
         
