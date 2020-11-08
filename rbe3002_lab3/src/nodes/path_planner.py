@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #!/usr/bin/env python
 
 import math
@@ -160,8 +161,15 @@ class PathPlanner:
         :return [OccupancyGrid] The grid if the service call was successful,
                                 None in case of error.
         """
-        ### REQUIRED CREDIT
         rospy.loginfo("Requesting the map")
+        rospy.wait_for_service('static_map')
+        try:
+            static_map_service = rospy.ServiceProxy('static_map', GetMap)
+            responce = static_map_service()
+            return responce.map
+        except:
+            print("service call failed: %s"%e)
+            return None
 
 
 
