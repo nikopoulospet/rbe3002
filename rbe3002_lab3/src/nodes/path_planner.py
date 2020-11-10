@@ -44,8 +44,8 @@ class PathPlanner:
         :return  [int] The index.
         """
         # get the width fro mthe map data
-        width = mapdata.MapMetaData.width
-        # calculate the index from the given x y cordantes and the width
+        width = mapdata.info.width
+        # calculate the index from the given x y coordantes and the width
         index = y * width + x
         # return the index
         return index
@@ -82,13 +82,13 @@ class PathPlanner:
         :return        [Point]         The position in the world.
         """
         # get the orgion in the real world
-        orginX = mapdata.MapMetaData.Pose.Point.x
-        orginY = mapdata.MapMetaData.Pose.Point.y
+        orginX = mapdata.info.origin.position.x
+        orginY = mapdata.info.origin.position.y
         # get the size of each cell
-        resolution = mapdata.MapMetaData.resolution
+        resolution = mapdata.info.resolution
         # get the real world point
-        real_world_x = resolution * x + orginX
-        real_world_y = resolution * y + orginY
+        real_world_x = resolution * (x + 0.5) + orginX
+        real_world_y = resolution * (y + 0.5) + orginY
         # make the real world Point
         point = Point(real_world_x, real_world_y, 0.)
         # return the point
@@ -108,10 +108,10 @@ class PathPlanner:
         wpX = wp.x
         wpY = wp.y
         # get the orgion in the real world
-        orginX = mapdata.MapMetaData.Pose.Point.x
-        orginY = mapdata.MapMetaData.Pose.Point.y
+        orginX = mapdata.info.Pose.Point.x
+        orginY = mapdata.info.Pose.Point.y
         # get the resolution of each cell
-        resolution = mapdata.MapMetaData.resolution
+        resolution = mapdata.info.resolution
         # get the wp distance from the maps world orgin
         x_offest_from_cell_orgin = wpX - orginX
         y_offest_from_cell_orgin = wpY - orginY
@@ -155,9 +155,9 @@ class PathPlanner:
         """
         occupied_thresh = 65
         free_thresh = 19.6
-        if x < mapdata.MapMetaData.width and x >= 0 and y < mapdata.MapMetaData.height and y >= 0:
+        if x < mapdata.info.width and x >= 0 and y < mapdata.info.height and y >= 0:
             cell = PathPlanner.grid_to_index(mapdata,x,y)
-            return cell < free_thresh
+            return mapdata.data[cell] < free_thresh
         return False
         
 
@@ -174,19 +174,19 @@ class PathPlanner:
         """
         neighbors = []
 
-        if PathPlanner.is_cell_walkable(mapdata, x - 1, y)
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
             neighbor_left = PathPlanner.grid_to_index(x - 1, y)
             neighbors.append(neighbor_left)
 
-        if PathPlanner.is_cell_walkable(mapdata, x + 1, y)
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
             neighbor_right = PathPlanner.grid_to_index(x + 1, y)
             neighbors.append(neighbor_right)
 
-        if PathPlanner.is_cell_walkable(mapdata, x, y + 1)
+        if PathPlanner.is_cell_walkable(mapdata, x, y + 1):
             neighbor_top = PathPlanner.grid_to_index(x, y + 1)
             neighbors.append(neighbor_top)
 
-        if PathPlanner.is_cell_walkable(mapdata, x, y - 1)
+        if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
             neighbor_down = PathPlanner.grid_to_index(x, y - 1)
             neighbors.append(neighbor_down)
         
@@ -207,35 +207,35 @@ class PathPlanner:
         """
         neighbors = []
 
-        if PathPlanner.is_cell_walkable(mapdata, x - 1, y + 1)
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y + 1):
             neighbor1 = PathPlanner.grid_to_index(x - 1, y + 1)
             neighbors.append(neighbor1)
 
-        if PathPlanner.is_cell_walkable(mapdata, x , y + 1)
+        if PathPlanner.is_cell_walkable(mapdata, x , y + 1):
             neighbor2 = PathPlanner.grid_to_index(x, y + 1)
             neighbors.append(neighbor2)
 
-        if PathPlanner.is_cell_walkable(mapdata, x + 1, y + 1)
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y + 1):
             neighbor3 = PathPlanner.grid_to_index(x + 1, y + 1)
             neighbors.append(neighbor3)
 
-        if PathPlanner.is_cell_walkable(mapdata, x - 1, y)
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
             neighbor4 = PathPlanner.grid_to_index(x - 1, y)
             neighbors.append(neighbor4)
 
-        if PathPlanner.is_cell_walkable(mapdata, x + 1, y)
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
             neighbor5 = PathPlanner.grid_to_index(x + 1, y)
             neighbors.append(neighbor5)
 
-        if PathPlanner.is_cell_walkable(mapdata, x - 1, y - 1)
+        if PathPlanner.is_cell_walkable(mapdata, x - 1, y - 1):
             neighbor6 = PathPlanner.grid_to_index(x - 1, y - 1)
             neighbors.append(neighbor6)
 
-        if PathPlanner.is_cell_walkable(mapdata, x, y - 1)
+        if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
             neighbor7 = PathPlanner.grid_to_index(x, y - 1)
             neighbors.append(neighbor7)
 
-        if PathPlanner.is_cell_walkable(mapdata, x + 1, y - 1)
+        if PathPlanner.is_cell_walkable(mapdata, x + 1, y - 1):
             neighbor8 = PathPlanner.grid_to_index(x + 1, y - 1)
             neighbors.append(neighbor8)
         
@@ -273,26 +273,35 @@ class PathPlanner:
         ### REQUIRED CREDIT
         rospy.loginfo("Calculating C-Space")
         ## Go through each cell in the occupancy grid
-        ## Inflate the obstacles where necessary
-        padded_grid = []
-        ## Calculate the kernel based on padding param
-        kernel = []
-        size = 1 + 2*int(padding)
-        center = int(padding) + 1
-        for y in range(size):
-            row = []
-            for x in range(size):
-                row.append(1)
-            kernel.append(row)
-        ## Apply kernel to grid and create padded grid
-        for cell_num in range(len(mapdata.data)):
-            
+        ## Inflate the obstacles where necessary\
 
+        #define padded grid list
+        padded_grid = []
+
+        ## Apply kernel to grid and create padded grid
+        x = 0
+        y = 0
+        test = 0
+        for cell_num in range(len(mapdata.data)):
+            #cell_num to x,y to check for is occupied            
+            if not PathPlanner.is_cell_walkable(mapdata,x,y):
+                test +=1
+                for Y in range(-int(padding), 1 + int(padding)):
+                    for X in range(-int(padding), 1 + int(padding)): 
+                        if x+X in range(0,mapdata.info.width) and y+Y in range(0,mapdata.info.width):
+                            padded_grid.append(PathPlanner.grid_to_world(mapdata,x+X,y+Y))
+                            #add all the cells around a blocked cell as long as they are within the grid size
+
+            x += 1
+            if x % mapdata.info.width == 0: 
+                y += 1
+                x = 0
         ## Create a GridCells message and publish it
         grid = GridCells()
+        grid.header.frame_id = "map"
         grid.cells = padded_grid
-        grid.cell_width = mapdata.MapMetaData.width
-        grid.cell_height = mapdata.MapMetaData.height
+        grid.cell_width = mapdata.info.resolution
+        grid.cell_height = mapdata.info.resolution
         self.C_spacePublisher.publish(grid)
         ## Return the C-space
         return padded_grid
@@ -361,4 +370,6 @@ class PathPlanner:
 
         
 if __name__ == '__main__':
-    PathPlanner().run()
+    pp = PathPlanner()
+    mapdata = PathPlanner.request_map()
+    pp.calc_cspace(mapdata, 1)
