@@ -2,6 +2,7 @@
 
 import math
 import rospy
+from priority_queue import PriorityQueue
 from nav_msgs.srv import GetPlan, GetMap
 from nav_msgs.msg import GridCells, OccupancyGrid, Path
 from geometry_msgs.msg import Point, Pose, PoseStamped
@@ -20,7 +21,7 @@ class PathPlanner:
         rospy.init_node("path_planner")
         ## Create a new service called "plan_path" that accepts messages of
         ## type GetPlan and calls self.plan_path() when a message is received
-        self.path_planSubscriber = rospy.Subscriber("plan_path", Path, self.plan_path)
+        self.path_planService = rospy.Service("plan_path", GetPlan, self.plan_path)
         ## Create a publisher for the C-space (the enlarged occupancy grid)
         ## The topic is "/path_planner/cspace", the message type is GridCells
         self.C_spacePublisher = rospy.Publisher("/path_planner/cspace", GridCells, queue_size = 1)
@@ -109,8 +110,8 @@ class PathPlanner:
         wpX = wp.x
         wpY = wp.y
         # get the orgion in the real world
-        orginX = mapdata.info.Pose.Point.x
-        orginY = mapdata.info.Pose.Point.y
+        orginX = mapdata.info.origin.position.x
+        orginY = mapdata.info.origin.position.y
         # get the resolution of each cell
         resolution = mapdata.info.resolution
         # get the wp distance from the maps world orgin
@@ -123,7 +124,7 @@ class PathPlanner:
         x_cell_index = (x_offest_from_cell_orgin - x_remainder) / resolution
         y_cell_index = (y_offest_from_cell_orgin - y_remainder) / resolution
         # return the cell
-        return [(x_cell_index,y_cell_index)]
+        return (int(x_cell_index),int(y_cell_index))
 
 
         
@@ -158,6 +159,7 @@ class PathPlanner:
         free_thresh = 19.6
         if x < mapdata.info.width and x >= 0 and y < mapdata.info.height and y >= 0:
             cell = PathPlanner.grid_to_index(mapdata,x,y)
+            temp = mapdata.data[cell]
             return mapdata.data[cell] < free_thresh
         return False
         
@@ -174,21 +176,20 @@ class PathPlanner:
         :return        [[(int,int)]]   A list of walkable 4-neighbors.
         """
         neighbors = []
-
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
-            neighbor_left = PathPlanner.grid_to_index(x - 1, y)
+            neighbor_left = PathPlanner.grid_to_index(mapdata, x - 1, y)
             neighbors.append(neighbor_left)
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
-            neighbor_right = PathPlanner.grid_to_index(x + 1, y)
+            neighbor_right = PathPlanner.grid_to_index(mapdata, x + 1, y)
             neighbors.append(neighbor_right)
 
         if PathPlanner.is_cell_walkable(mapdata, x, y + 1):
-            neighbor_top = PathPlanner.grid_to_index(x, y + 1)
+            neighbor_top = PathPlanner.grid_to_index(mapdata, x, y + 1)
             neighbors.append(neighbor_top)
 
         if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
-            neighbor_down = PathPlanner.grid_to_index(x, y - 1)
+            neighbor_down = PathPlanner.grid_to_index(mapdata, x, y - 1)
             neighbors.append(neighbor_down)
         
         return neighbors
@@ -209,35 +210,35 @@ class PathPlanner:
         neighbors = []
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y + 1):
-            neighbor1 = PathPlanner.grid_to_index(x - 1, y + 1)
+            neighbor1 = PathPlanner.grid_to_index(mapdata, x - 1, y + 1)
             neighbors.append(neighbor1)
 
         if PathPlanner.is_cell_walkable(mapdata, x , y + 1):
-            neighbor2 = PathPlanner.grid_to_index(x, y + 1)
+            neighbor2 = PathPlanner.grid_to_index(mapdata, x, y + 1)
             neighbors.append(neighbor2)
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y + 1):
-            neighbor3 = PathPlanner.grid_to_index(x + 1, y + 1)
+            neighbor3 = PathPlanner.grid_to_index(mapdata, x + 1, y + 1)
             neighbors.append(neighbor3)
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
-            neighbor4 = PathPlanner.grid_to_index(x - 1, y)
+            neighbor4 = PathPlanner.grid_to_index(mapdata, x - 1, y)
             neighbors.append(neighbor4)
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
-            neighbor5 = PathPlanner.grid_to_index(x + 1, y)
+            neighbor5 = PathPlanner.grid_to_index(mapdata, x + 1, y)
             neighbors.append(neighbor5)
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y - 1):
-            neighbor6 = PathPlanner.grid_to_index(x - 1, y - 1)
+            neighbor6 = PathPlanner.grid_to_index(mapdata, x - 1, y - 1)
             neighbors.append(neighbor6)
 
         if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
-            neighbor7 = PathPlanner.grid_to_index(x, y - 1)
+            neighbor7 = PathPlanner.grid_to_index(mapdata, x, y - 1)
             neighbors.append(neighbor7)
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y - 1):
-            neighbor8 = PathPlanner.grid_to_index(x + 1, y - 1)
+            neighbor8 = PathPlanner.grid_to_index(mapdata, x + 1, y - 1)
             neighbors.append(neighbor8)
         
         return neighbors
@@ -278,6 +279,7 @@ class PathPlanner:
 
         #define padded grid list
         padded_grid = []
+        padded_map = []
 
         ## Apply kernel to grid and create padded grid
         x = 0
@@ -290,9 +292,11 @@ class PathPlanner:
                 for Y in range(-int(padding), 1 + int(padding)):
                     for X in range(-int(padding), 1 + int(padding)): 
                         if x+X in range(0,mapdata.info.width) and y+Y in range(0,mapdata.info.width):
+                            padded_map.append(100)
                             padded_grid.append(PathPlanner.grid_to_world(mapdata,x+X,y+Y))
                             #add all the cells around a blocked cell as long as they are within the grid size
-
+            else:
+                padded_map.append(0)
             x += 1
             if x % mapdata.info.width == 0: 
                 y += 1
@@ -305,15 +309,45 @@ class PathPlanner:
         grid.cell_height = mapdata.info.resolution
         self.C_spacePublisher.publish(grid)
         ## Return the C-space
-        return padded_grid
+        #mapdata.data = padded_map
+        return mapdata
 
 
     
     def a_star(self, mapdata, start, goal):
         ### REQUIRED CREDIT
         rospy.loginfo("Executing A* from (%d,%d) to (%d,%d)" % (start[0], start[1], goal[0], goal[1]))
+        Queue = PriorityQueue()
+        Queue.put(start,0)
+        came_from = {}
+        cost = {}
+        came_from[start] = 0
+        cost[start] = 0
+
+        while not Queue.empty():
+            current = Queue.get()
+
+            if current == goal:
+                break
+            for next in PathPlanner.neighbors_of_4(mapdata,current[0],current[1]):
+                print(next)
+                new_cost = cost[current] + 1 #add 1 b/c we will be moving by constant cells ? 
+                if not next in cost or new_cost < cost[next]:
+                    cost[next] = new_cost
+                    priority = new_cost + PathPlanner.euclidean_distance(goal[0],goal[1],next[0],next[1])
+                    Queue.put(next,priority)
+                    came_from[next] = current
+        
+        path_list = []
+        print(current,came_from[current])
+
+        
+        path = GridCells()
+        path.header.frame_id = "map"
+        
 
 
+        #return Queue.elements()
     
     @staticmethod
     def optimize_path(path):
@@ -380,9 +414,9 @@ class PathPlanner:
         goal  = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
         path  = self.a_star(cspacedata, start, goal)
         ## Optimize waypoints
-        waypoints = PathPlanner.(path)
+        #waypoints = PathPlanner.optimize_path(path)
         ## Return a Path message
-        return self.path_to_message(mapdata, waypoints)
+        return self.path_to_message(mapdata, path)
 
 
     
@@ -396,5 +430,4 @@ class PathPlanner:
         
 if __name__ == '__main__':
     pp = PathPlanner()
-    mapdata = PathPlanner.request_map()
-    pp.calc_cspace(mapdata, 1)
+    pp.run()

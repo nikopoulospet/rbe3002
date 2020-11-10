@@ -32,7 +32,7 @@ class Robot_controller:
         self.yaw = 0 # yaw angle
         self.maxWheelSpeed = 0.22 #physcial limit by turtlebot 3
         self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
-        rospy.loginfo("Lab 2 Node Initalized")
+        rospy.loginfo("Rbobot Controller Node Initalized")
 
 
     def send_speed(self, linear_speed, angular_speed):
@@ -60,8 +60,6 @@ class Robot_controller:
         ### Publish the message
         self.TwistPublisher.publish(vel_msg)
 
-    
-        self.go_t
     def drive(self, distance, linear_speed):
         """
         Drives the robot in a straight line.
@@ -225,7 +223,7 @@ class Robot_controller:
         try:
             plan = rospy.ServiceProxy('plan_path', GetPlan)
             response = plan(cur_pose, msg, 0.1)
-            self.handle_a_star(response)
+            #self.handle_a_star(response)
         except:
             rospy.loginfo("Service failed")
     """
@@ -244,8 +242,4 @@ class Robot_controller:
 
 if __name__ == '__main__':
     robot = Robot_controller()
-    rospy.sleep(1)
-    #robot.drive(1,0.2)
-    #robot.rotate(math.pi,0.2)
-    robot.smooth_drive(1,0.2)
     rospy.spin()
