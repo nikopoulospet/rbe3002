@@ -242,7 +242,7 @@ class PathPlanner:
             responce = static_map_service()
             return responce.map
         except:
-            print("service call failed: %s" % e)
+            rospy.loginfo("service call failed: %s" % e)
             return None
 
     def calc_cspace(self, mapdata, padding):
@@ -389,7 +389,6 @@ class PathPlanner:
         start = PathPlanner.world_to_grid(mapdata, msg.start.pose.position)
         goal = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
         path = self.a_star(cspacedata, start, goal)
-        print(path)
         # Optimize waypoints
         #waypoints = PathPlanner.optimize_path(path)
         # Return a Path message
