@@ -13,3 +13,4 @@ CMakeLists.txt
 .gitignore.swp
 *.vscode
 *.idea
+*.pyc
