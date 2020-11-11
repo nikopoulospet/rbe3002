@@ -224,20 +224,18 @@ class Robot_controller:
             plan = rospy.ServiceProxy('plan_path', GetPlan)
             response = plan(cur_pose, msg, 0.1)
             print(response)
-            #self.handle_a_star(response)
+            self.handle_a_star(response)
         except rospy.ServiceException as e:
             rospy.loginfo("Service failed: %s"%e)
-    """
-    def handle_a_star(self, response):
-        start = msg.start
-        end = msg.goal
 
-        path = msg.plan.PoseStamped
+    def handle_a_star(self, response):
+
+        path = response.plan.PoseStamped
 
         for point in path:
-            self.go_to()
-        pass
-    """
+            self.go_to(point)
+            rospy.sleep(0.2)
+            
     def run(self):
         rospy.spin()
 
