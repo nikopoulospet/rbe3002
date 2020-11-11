@@ -223,9 +223,10 @@ class Robot_controller:
         try:
             plan = rospy.ServiceProxy('plan_path', GetPlan)
             response = plan(cur_pose, msg, 0.1)
+            print(response)
             #self.handle_a_star(response)
-        except:
-            rospy.loginfo("Service failed")
+        except rospy.ServiceException as e:
+            rospy.loginfo("Service failed: %s"%e)
     """
     def handle_a_star(self, response):
         start = msg.start
