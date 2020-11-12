@@ -162,7 +162,7 @@ Visualization Manager:
       Shaft Diameter: 0.10000000149011612
       Shaft Length: 0.10000000149011612
       Topic: /path_planner/astar_path
-      Unreliable: true
+      Unreliable: false
       Value: true
   Enabled: true
   Global Options:
