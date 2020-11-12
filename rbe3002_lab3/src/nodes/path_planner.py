@@ -166,19 +166,15 @@ class PathPlanner:
         """
         neighbors = []
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
-            #neighbor_left = PathPlanner.grid_to_index(mapdata, x - 1, y)
             neighbors.append((x-1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
-            #neighbor_right = PathPlanner.grid_to_index(mapdata, x + 1, y)
             neighbors.append((x+1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y + 1):
-            #neighbor_top = PathPlanner.grid_to_index(mapdata, x, y + 1)
             neighbors.append((x, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
-            #neighbor_down = PathPlanner.grid_to_index(mapdata, x, y - 1)
             neighbors.append((x, y-1))
 
         return neighbors
@@ -195,35 +191,27 @@ class PathPlanner:
         neighbors = []
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y + 1):
-            #neighbor1 = PathPlanner.grid_to_index(mapdata, x - 1, y + 1)
             neighbors.append((x-1, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y + 1):
-            #neighbor2 = PathPlanner.grid_to_index(mapdata, x, y + 1)
             neighbors.append((x, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y + 1):
-            #neighbor3 = PathPlanner.grid_to_index(mapdata, x + 1, y + 1)
             neighbors.append((x+1, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
-            #neighbor4 = PathPlanner.grid_to_index(mapdata, x - 1, y)
             neighbors.append((x-1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
-            #neighbor5 = PathPlanner.grid_to_index(mapdata, x + 1, y)
             neighbors.append((x+1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y - 1):
-            #neighbor6 = PathPlanner.grid_to_index(mapdata, x - 1, y - 1)
             neighbors.append((x-1, y-1))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
-            #neighbor7 = PathPlanner.grid_to_index(mapdata, x, y - 1)
             neighbors.append((x, y-1))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y - 1):
-            #neighbor8 = PathPlanner.grid_to_index(mapdata, x + 1, y - 1)
             neighbors.append((x+1, y-1))
 
         return neighbors
@@ -261,7 +249,7 @@ class PathPlanner:
         # define padded grid list
         padded_grid = []
         sizeOF = (mapdata.info.width * mapdata.info.height)
-        padded_map = [0] * sizeOF
+        padded_map = [0] * sizeOF #set all values in new list to walkable
 
         # Apply kernel to grid and create padded grid
         x = 0
@@ -269,13 +257,13 @@ class PathPlanner:
         test = 0
         for cell_num in range(len(mapdata.data)):
             # cell_num to x,y to check for is occupied
-            if not PathPlanner.is_cell_walkable(mapdata, x, y):
+            if not PathPlanner.is_cell_walkable(mapdata, x, y): #if a cell is not walkable perform dilation
                 test += 1
                 for Y in range(-int(padding), 1 + int(padding)):
                     for X in range(-int(padding), 1 + int(padding)):
                         if x+X in range(0, mapdata.info.width) and y+Y in range(0, mapdata.info.width):
                             padded_map[PathPlanner.grid_to_index(
-                                mapdata, x+X, y+Y)] = 100
+                                mapdata, x+X, y+Y)] = 100 #set grid cell at this index to unwalkable
                             padded_grid.append(
                                 PathPlanner.grid_to_world(mapdata, x+X, y+Y))
                             # add all the cells around a blocked cell as long as they are within the grid size
@@ -290,9 +278,8 @@ class PathPlanner:
         grid.cell_width = mapdata.info.resolution
         grid.cell_height = mapdata.info.resolution
         self.C_spacePublisher.publish(grid)
-        # Return the C-space
+        # Return the C-space with padded map array
         mapdata.data = padded_map
-        # TODO fix this
         return mapdata
 
     def a_star(self, mapdata, start, goal):
@@ -312,9 +299,10 @@ class PathPlanner:
             current = Queue.get()
             
             if current == goal:
+                #end when we are at the goal
                 break
             for next in PathPlanner.neighbors_of_8(mapdata, current[0], current[1]):
-                # add 1 b/c we will be moving by constant cells ?
+                #add 1 b/c we will be moving by constant cells
                 new_cost = cost[current] + 1
                 if not next in cost or new_cost < cost[next]:
                     cost[next] = new_cost
@@ -326,6 +314,7 @@ class PathPlanner:
                     checked_grid.append(PathPlanner.grid_to_world(mapdata, next[0], next[1]))
                     came_from[next] = current
         path_list = []
+        #backtrack through came_from dict until at start pos, then reverse list
         while not came_from[current] == 0:
             path_list.append(current)
             current = came_from[current]
