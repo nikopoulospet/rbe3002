@@ -26,6 +26,10 @@ class PathPlanner:
         # The topic is "/path_planner/cspace", the message type is GridCells
         self.C_spacePublisher = rospy.Publisher(
             "/path_planner/cspace", GridCells, queue_size=1)
+        # Create a publisher for the A-star checked spots (the enlarged occupancy grid)
+        # The topic is "/path_planner/astar_checked", the message type is GridCells
+        self.A_star_checkedPublisher = rospy.Publisher(
+            "/path_planner/astar_checked", GridCells, queue_size=1)
         # Create publishers for A* (expanded cells, frontier, ...)
         # Choose a the topic names, the message type is GridCells
         self.A_starPublisher = rospy.Publisher(
@@ -303,10 +307,11 @@ class PathPlanner:
         cost = {}
         came_from[start] = 0
         cost[start] = 0
-
+        checked_grid = [PathPlanner.grid_to_world(mapdata, start[0], start[1])]
+        
         while not Queue.empty():
             current = Queue.get()
-
+            
             if current == goal:
                 break
             for next in PathPlanner.neighbors_of_8(mapdata, current[0], current[1]):
@@ -318,12 +323,22 @@ class PathPlanner:
                         PathPlanner.euclidean_distance(
                             goal[0], goal[1], next[0], next[1])
                     Queue.put(next, priority)
+                    checked_grid.append(PathPlanner.grid_to_world(mapdata, next[0], next[1]))
                     came_from[next] = current
         path_list = []
         while not came_from[current] == 0:
             path_list.append(current)
             current = came_from[current]
         path_list.reverse()
+        print("Publishing visited cells")
+        #Create a GridCells message and publish it
+        grid = GridCells()
+        grid.header.frame_id = "map"
+        grid.cells = checked_grid
+        grid.cell_width = mapdata.info.resolution
+        grid.cell_height = mapdata.info.resolution
+        self.A_star_checkedPublisher.publish(grid)
+        print("Done with A*")
         return path_list
 
     @staticmethod
