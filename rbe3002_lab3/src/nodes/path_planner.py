@@ -3,9 +3,9 @@
 import math
 import rospy
 from priority_queue import PriorityQueue
-from nav_msgs.srv import GetPlan,GetPlanResponse, GetMap
+from nav_msgs.srv import GetPlan, GetPlanResponse, GetMap
 from nav_msgs.msg import GridCells, OccupancyGrid, Path
-from geometry_msgs.msg import Point, Pose, PoseStamped
+from geometry_msgs.msg import Point, Pose, PoseStamped, Quaternion
 from tf.transformations import quaternion_from_euler
 
 
@@ -196,35 +196,35 @@ class PathPlanner:
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y + 1):
             #neighbor1 = PathPlanner.grid_to_index(mapdata, x - 1, y + 1)
-            neighbors.append((x-1,y+1))
+            neighbors.append((x-1, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y + 1):
             #neighbor2 = PathPlanner.grid_to_index(mapdata, x, y + 1)
-            neighbors.append((x,y+1))
+            neighbors.append((x, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y + 1):
             #neighbor3 = PathPlanner.grid_to_index(mapdata, x + 1, y + 1)
-            neighbors.append((x+1,y+1))
+            neighbors.append((x+1, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
             #neighbor4 = PathPlanner.grid_to_index(mapdata, x - 1, y)
-            neighbors.append((x-1,y))
+            neighbors.append((x-1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
             #neighbor5 = PathPlanner.grid_to_index(mapdata, x + 1, y)
-            neighbors.append((x+1,y))
+            neighbors.append((x+1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y - 1):
             #neighbor6 = PathPlanner.grid_to_index(mapdata, x - 1, y - 1)
-            neighbors.append((x-1,y-1))
+            neighbors.append((x-1, y-1))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
             #neighbor7 = PathPlanner.grid_to_index(mapdata, x, y - 1)
-            neighbors.append((x,y-1))
+            neighbors.append((x, y-1))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y - 1):
             #neighbor8 = PathPlanner.grid_to_index(mapdata, x + 1, y - 1)
-            neighbors.append((x+1,y-1))
+            neighbors.append((x+1, y-1))
 
         return neighbors
 
@@ -261,7 +261,7 @@ class PathPlanner:
         # define padded grid list
         padded_grid = []
         sizeOF = (mapdata.info.width * mapdata.info.height)
-        padded_map = [0] * sizeOF  
+        padded_map = [0] * sizeOF
 
         # Apply kernel to grid and create padded grid
         x = 0
@@ -274,8 +274,10 @@ class PathPlanner:
                 for Y in range(-int(padding), 1 + int(padding)):
                     for X in range(-int(padding), 1 + int(padding)):
                         if x+X in range(0, mapdata.info.width) and y+Y in range(0, mapdata.info.width):
-                            padded_map[PathPlanner.grid_to_index(mapdata,x+X, y+Y)] = 100
-                            padded_grid.append(PathPlanner.grid_to_world(mapdata, x+X, y+Y))
+                            padded_map[PathPlanner.grid_to_index(
+                                mapdata, x+X, y+Y)] = 100
+                            padded_grid.append(
+                                PathPlanner.grid_to_world(mapdata, x+X, y+Y))
                             # add all the cells around a blocked cell as long as they are within the grid size
             x += 1
             if x % mapdata.info.width == 0:
@@ -347,26 +349,30 @@ class PathPlanner:
         world_path = Path()
         world_path.header.frame_id = "map"
         # loop through the path
-        for index in path:
+        for index in range(0,len(path)):
             # make the current pose
             stamped_pose = PoseStamped()
             # find the point in the real world
-            world_point = self.grid_to_world(mapdata, index[0], index[1])
+            world_point = self.grid_to_world(mapdata, path[index][0], path[index][1])
             # add the real world point to the pose
             stamped_pose.pose.position = world_point
             # add the pose to the path
-            world_path.poses.append(stamped_pose)
-            # if this isnt the first point
-            if(len(world_path.poses) > 1):
-                # get the last world point
-                last_world_point = self.grid_to_world(
-                    mapdata, lastIndex[0], lastIndex[1])
-                # calculate the angel between the last and current point
-                angle = math.atan2(last_world_point.y-world_point.y, last_world_point.x-world_point.x)
-                # convert the angle to quaternion and set it as the angle for the current node
-                #stamped_pose.pose.orientation = quaternion_from_euler(0, 0, angle)
 
-            lastIndex = index
+
+
+            # if this isnt the first point
+            if(index == (len(path) - 1)):
+                #last one
+                pass
+            else:
+                # calculate the angel between the last and current point
+                angle = math.atan2(path[index+1][1] - path[index][1], path[index+1][0] - path[index][0])
+
+                # convert the angle to quaternion and set it as the angle for the current node
+                stamped_pose.pose.orientation = Quaternion(*quaternion_from_euler(0.0, 0.0, angle))
+                pass
+
+            world_path.poses.append(stamped_pose)
 
         rospy.loginfo("Returning a Path message")
         self.A_starPublisher.publish(world_path)
