@@ -352,6 +352,31 @@ class PathPlanner:
         """
         # EXTRA CREDIT
         rospy.loginfo("Optimizing path")
+        # creates a list to store the optimized path
+        better_path = path
+        # creates a variable that stores the slope between the current pt and the pt before
+        slope_1 = 0
+        # creates a variable that stores the slope between the current pt and the pt after
+        slope_2 = 0
+
+        for i in range(1, len(path) - 1):
+            if not path[i-1] == None:
+                if (path[i][0] - path[i-1][0]) == 0:
+                    slope_1 = float('inf')
+                else:
+                    slope_1 = (path[i][1] - path[i-1][1]) / (path[i][0] - path[i-1][0])
+            if not path[i+1] == None:
+                if (path[i+1][0] - path[i][0]) == 0:
+                    slope_2 = float('inf')
+                else:
+                    slope_2 = (path[i+1][1] - path[i][1]) / (path[i+1][0] - path[i][0])
+            if slope_1 == slope_2:
+                better_path.remove(path[i])
+
+        return better_path
+
+        
+
 
     def path_to_message(self, mapdata, path):
         """
@@ -411,9 +436,9 @@ class PathPlanner:
         goal = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
         path = self.a_star(cspacedata, start, goal)
         # Optimize waypoints
-        #waypoints = PathPlanner.optimize_path(path)
+        waypoints = PathPlanner.optimize_path(path)
         # Return a Path message
-        return GetPlanResponse(self.path_to_message(mapdata, path))
+        return GetPlanResponse(self.path_to_message(mapdata, waypoints))
 
     def run(self):
         """
