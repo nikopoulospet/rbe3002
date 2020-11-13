@@ -303,12 +303,10 @@ class PathPlanner:
                 break
             for next in PathPlanner.neighbors_of_8(mapdata, current[0], current[1]):
                 #add 1 b/c we will be moving by constant cells
-                new_cost = cost[current] + 1
+                new_cost = cost[current] + PathPlanner.euclidean_distance(current[0], current[1], next[0], next[1])
                 if not next in cost or new_cost < cost[next]:
                     cost[next] = new_cost
-                    priority = new_cost + \
-                        PathPlanner.euclidean_distance(
-                            goal[0], goal[1], next[0], next[1])
+                    priority = new_cost + PathPlanner.euclidean_distance(goal[0], goal[1], next[0], next[1])
                     Queue.put(next, priority)
                     # add this cell to the list of cells visited for rviz vizulization
                     checked_grid.append(PathPlanner.grid_to_world(mapdata, next[0], next[1]))

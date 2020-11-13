@@ -107,14 +107,14 @@ class Robot_controller:
         sleep_time = 0.0250
         # intial robot conition
         start_angle = self.yaw
-        # check to see which direction the robot should rotate
-        d = -1
-        d = 1 if angle < 0 else -1
-        # start the robot spinning
-        self.send_speed(0,aspeed*d)
+        target_angle = start_angle - angle
         # wait till the robot is at the correct angle within the given tolerance
         while((abs(start_angle - (self.yaw + angle))) > tolerance):
-            rospy.sleep(sleep_time)
+            # p controlle on the angle
+            angular_error = target_angle - self.yaw
+            angular_effort = angular_error * 5
+            # send the speeds the linar speed is mulitplied by the scaler based on t
+            self.send_speed(0, angular_effort)
         # stop the robot from spinning
         self.send_speed(0,0)
         rospy.loginfo("Done Rotating")
@@ -146,6 +146,9 @@ class Robot_controller:
         # calculate the angle between current yaw and the target final yaw
         to_target_end_angle = self.yaw - target_yaw
         self.rotate(to_target_end_angle, 0.2)
+        self.send_speed(0,0)
+        rospy.loginfo("Done With go_to")
+
 
 
 
@@ -203,6 +206,41 @@ class Robot_controller:
                 # P control on the the robots yaw
                 angular_error = init_angle - self.yaw
                 angular_effort = angular_error * 10
+                # send the speeds the linar speed is mulitplied by the scaler based on t
+                self.send_speed(linear_speed * (-50 * (t - 0.5)**6 + 1), angular_effort)
+                # wait
+                rospy.sleep(sleep_time)
+        # stop the robot from driving
+        self.send_speed(0, 0)
+        rospy.loginfo("Done Smooth Driving")
+
+    def drive_to_point(self, point, linear_speed):
+        """
+        Drives the robot to a point and smoothly changes the speed.
+        :param point        [Point]       The target point
+        :param linear_speed [float] [m/s] The maximum forward linear speed.
+        """
+        # the inital robot condition
+        init_x = self.px
+        init_y = self.py
+        distance = abs(math.sqrt((point.pose.x - self.px) ** 2 + (point.pose.y - self.py) ** 2))
+        # smooth drive peramiters
+        tolerance = 0.005
+        sleep_time = 0.0250
+        
+        #start of smooth drive control loop
+        run = True
+        while run:
+            # wait till the robot is at the correct pos within the given tolerance
+            if abs(math.sqrt((point.pose.x - self.px) ** 2 + (point.pose.y - self.py) ** 2)) <= tolerance:
+                run = False
+            else:
+                # calculate the persentage of the desired distance travled (0 -> 1)
+                t = abs(math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) / distance
+                # P control on the the robots yaw
+                target_angle = math.atan2((point.pose.y - self.py), (point.pose.x - self.px))
+                angular_error = target_angle - self.yaw
+                angular_effort = angular_error * 5
                 # send the speeds the linar speed is mulitplied by the scaler based on t
                 self.send_speed(linear_speed * (-50 * (t - 0.5)**6 + 1), angular_effort)
                 # wait
