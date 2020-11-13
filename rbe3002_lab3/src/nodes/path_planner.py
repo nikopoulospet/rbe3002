@@ -20,22 +20,16 @@ class PathPlanner:
         rospy.init_node("path_planner")
         # Create a new service called "plan_path" that accepts messages of
         # type GetPlan and calls self.plan_path() when a message is received
-        self.path_planService = rospy.Service(
-            "plan_path", GetPlan, self.plan_path)
+        self.path_planService = rospy.Service("plan_path", GetPlan, self.plan_path)
         # Create a publisher for the C-space (the enlarged occupancy grid)
         # The topic is "/path_planner/cspace", the message type is GridCells
-        self.C_spacePublisher = rospy.Publisher(
-            "/path_planner/cspace", GridCells, queue_size=1)
+        self.C_spacePublisher = rospy.Publisher("/path_planner/cspace", GridCells, queue_size=1)
         # Create a publisher for the A-star checked spots (the enlarged occupancy grid)
         # The topic is "/path_planner/astar_checked", the message type is GridCells
-        self.A_star_checkedPublisher = rospy.Publisher(
-            "/path_planner/astar_checked", GridCells, queue_size=1)
+        self.A_star_checkedPublisher = rospy.Publisher("/path_planner/astar_checked", GridCells, queue_size=1)
         # Create publishers for A* (expanded cells, frontier, ...)
         # Choose a the topic names, the message type is GridCells
-        self.A_starPublisher = rospy.Publisher(
-            "/path_planner/astar_path", Path, queue_size=1)
-        self.A_starPublisher2 = rospy.Publisher(
-            "/path_planner/astar_path2", Path, queue_size=1)
+        self.A_starPublisher = rospy.Publisher("/path_planner/astar_path", Path, queue_size=1)
         # Initialize the request counter
         self.requestCounter = 0
         # Sleep to allow roscore to do some housekeeping
@@ -172,19 +166,15 @@ class PathPlanner:
         """
         neighbors = []
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
-            #neighbor_left = PathPlanner.grid_to_index(mapdata, x - 1, y)
             neighbors.append((x-1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
-            #neighbor_right = PathPlanner.grid_to_index(mapdata, x + 1, y)
             neighbors.append((x+1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y + 1):
-            #neighbor_top = PathPlanner.grid_to_index(mapdata, x, y + 1)
             neighbors.append((x, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
-            #neighbor_down = PathPlanner.grid_to_index(mapdata, x, y - 1)
             neighbors.append((x, y-1))
 
         return neighbors
@@ -201,35 +191,27 @@ class PathPlanner:
         neighbors = []
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y + 1):
-            #neighbor1 = PathPlanner.grid_to_index(mapdata, x - 1, y + 1)
             neighbors.append((x-1, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y + 1):
-            #neighbor2 = PathPlanner.grid_to_index(mapdata, x, y + 1)
             neighbors.append((x, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y + 1):
-            #neighbor3 = PathPlanner.grid_to_index(mapdata, x + 1, y + 1)
             neighbors.append((x+1, y+1))
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y):
-            #neighbor4 = PathPlanner.grid_to_index(mapdata, x - 1, y)
             neighbors.append((x-1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y):
-            #neighbor5 = PathPlanner.grid_to_index(mapdata, x + 1, y)
             neighbors.append((x+1, y))
 
         if PathPlanner.is_cell_walkable(mapdata, x - 1, y - 1):
-            #neighbor6 = PathPlanner.grid_to_index(mapdata, x - 1, y - 1)
             neighbors.append((x-1, y-1))
 
         if PathPlanner.is_cell_walkable(mapdata, x, y - 1):
-            #neighbor7 = PathPlanner.grid_to_index(mapdata, x, y - 1)
             neighbors.append((x, y-1))
 
         if PathPlanner.is_cell_walkable(mapdata, x + 1, y - 1):
-            #neighbor8 = PathPlanner.grid_to_index(mapdata, x + 1, y - 1)
             neighbors.append((x+1, y-1))
 
         return neighbors
@@ -267,7 +249,7 @@ class PathPlanner:
         # define padded grid list
         padded_grid = []
         sizeOF = (mapdata.info.width * mapdata.info.height)
-        padded_map = [0] * sizeOF
+        padded_map = [0] * sizeOF #set all values in new list to walkable
 
         # Apply kernel to grid and create padded grid
         x = 0
@@ -275,13 +257,13 @@ class PathPlanner:
         test = 0
         for cell_num in range(len(mapdata.data)):
             # cell_num to x,y to check for is occupied
-            if not PathPlanner.is_cell_walkable(mapdata, x, y):
+            if not PathPlanner.is_cell_walkable(mapdata, x, y): #if a cell is not walkable perform dilation
                 test += 1
                 for Y in range(-int(padding), 1 + int(padding)):
                     for X in range(-int(padding), 1 + int(padding)):
                         if x+X in range(0, mapdata.info.width) and y+Y in range(0, mapdata.info.width):
                             padded_map[PathPlanner.grid_to_index(
-                                mapdata, x+X, y+Y)] = 100
+                                mapdata, x+X, y+Y)] = 100 #set grid cell at this index to unwalkable
                             padded_grid.append(
                                 PathPlanner.grid_to_world(mapdata, x+X, y+Y))
                             # add all the cells around a blocked cell as long as they are within the grid size
@@ -296,9 +278,8 @@ class PathPlanner:
         grid.cell_width = mapdata.info.resolution
         grid.cell_height = mapdata.info.resolution
         self.C_spacePublisher.publish(grid)
-        # Return the C-space
+        # Return the C-space with padded map array
         mapdata.data = padded_map
-        # TODO fix this
         return mapdata
 
     def a_star(self, mapdata, start, goal):
@@ -311,15 +292,17 @@ class PathPlanner:
         cost = {}
         came_from[start] = 0
         cost[start] = 0
+        #initilize check_grid with the starting node
         checked_grid = [PathPlanner.grid_to_world(mapdata, start[0], start[1])]
         
         while not Queue.empty():
             current = Queue.get()
             
             if current == goal:
+                #end when we are at the goal
                 break
             for next in PathPlanner.neighbors_of_8(mapdata, current[0], current[1]):
-                # add 1 b/c we will be moving by constant cells ?
+                #add 1 b/c we will be moving by constant cells
                 new_cost = cost[current] + 1
                 if not next in cost or new_cost < cost[next]:
                     cost[next] = new_cost
@@ -327,20 +310,25 @@ class PathPlanner:
                         PathPlanner.euclidean_distance(
                             goal[0], goal[1], next[0], next[1])
                     Queue.put(next, priority)
+                    # add this cell to the list of cells visited for rviz vizulization
                     checked_grid.append(PathPlanner.grid_to_world(mapdata, next[0], next[1]))
                     came_from[next] = current
         path_list = []
+        #backtrack through came_from dict until at start pos, then reverse list
         while not came_from[current] == 0:
             path_list.append(current)
             current = came_from[current]
         path_list.reverse()
-        print("Publishing visited cells")
-        #Create a GridCells message and publish it
+
+        # Create a GridCells message
         grid = GridCells()
         grid.header.frame_id = "map"
+        # add the cells that were visited to the message
         grid.cells = checked_grid
+        # add cell info to the message
         grid.cell_width = mapdata.info.resolution
         grid.cell_height = mapdata.info.resolution
+        # publish the message
         self.A_star_checkedPublisher.publish(grid)
         print("Done with A*")
         return path_list
@@ -396,19 +384,16 @@ class PathPlanner:
         world_path.header.frame_id = "map"
         # loop through the path
         for index in range(0,len(path)):
-            # make the current pose
+            # initilize the current pose
             stamped_pose = PoseStamped()
             # find the point in the real world
             world_point = self.grid_to_world(mapdata, path[index][0], path[index][1])
             # add the real world point to the pose
             stamped_pose.pose.position = world_point
-            # add the pose to the path
 
-
-
-            # if this isnt the first point
+            # Calculate the finale angle for the pose based on the next angle
             if(index == (len(path) - 1)):
-                #last one
+                #if the last element do nothing to angle 
                 pass
             else:
                 # calculate the angel between the last and current point
@@ -416,12 +401,14 @@ class PathPlanner:
 
                 # convert the angle to quaternion and set it as the angle for the current node
                 stamped_pose.pose.orientation = Quaternion(*quaternion_from_euler(0.0, 0.0, angle))
-                pass
 
+            # add the pose to the path
             world_path.poses.append(stamped_pose)
 
         rospy.loginfo("Returning a Path message")
+        # publish the path to rviz
         self.A_starPublisher.publish(world_path)
+        # return the path
         return world_path
 
     
