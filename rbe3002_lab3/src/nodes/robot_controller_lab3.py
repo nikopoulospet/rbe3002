@@ -107,14 +107,14 @@ class Robot_controller:
         sleep_time = 0.0250
         # intial robot conition
         start_angle = self.yaw
-        # check to see which direction the robot should rotate
-        d = -1
-        d = 1 if angle < 0 else -1
-        # start the robot spinning
-        self.send_speed(0,aspeed*d)
+        target_angle = start_angle - angle
         # wait till the robot is at the correct angle within the given tolerance
         while((abs(start_angle - (self.yaw + angle))) > tolerance):
-            rospy.sleep(sleep_time)
+            # p controlle on the angle
+            angular_error = target_angle - self.yaw
+            angular_effort = angular_error * 5
+            # send the speeds the linar speed is mulitplied by the scaler based on t
+            self.send_speed(0, angular_effort)
         # stop the robot from spinning
         self.send_speed(0,0)
         rospy.loginfo("Done Rotating")
