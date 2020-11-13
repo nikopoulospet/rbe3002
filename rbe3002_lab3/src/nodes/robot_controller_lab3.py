@@ -109,7 +109,7 @@ class Robot_controller:
         start_angle = self.yaw
         # check to see which direction the robot should rotate
         d = -1
-        if angle < 0: d = 1
+        d = 1 if angle < 0 else -1
         # start the robot spinning
         self.send_speed(0,aspeed*d)
         # wait till the robot is at the correct angle within the given tolerance

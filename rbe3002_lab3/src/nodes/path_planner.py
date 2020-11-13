@@ -34,6 +34,8 @@ class PathPlanner:
         # Choose a the topic names, the message type is GridCells
         self.A_starPublisher = rospy.Publisher(
             "/path_planner/astar_path", Path, queue_size=1)
+        self.A_starPublisher2 = rospy.Publisher(
+            "/path_planner/astar_path2", Path, queue_size=1)
         # Initialize the request counter
         self.requestCounter = 0
         # Sleep to allow roscore to do some housekeeping
@@ -350,29 +352,33 @@ class PathPlanner:
         :param path [[(x,y)]] The path as a list of tuples (grid coordinates)
         :return     [[(x,y)]] The optimized path as a list of tuples (grid coordinates)
         """
+        
         # EXTRA CREDIT
         rospy.loginfo("Optimizing path")
         # creates a list to store the optimized path
-        better_path = path
+        better_path = [path[0]]
         # creates a variable that stores the slope between the current pt and the pt before
         slope_1 = 0
         # creates a variable that stores the slope between the current pt and the pt after
         slope_2 = 0
 
-        for i in range(1, len(path) - 1):
-            if not path[i-1] == None:
-                if (path[i][0] - path[i-1][0]) == 0:
-                    slope_1 = float('inf')
-                else:
-                    slope_1 = (path[i][1] - path[i-1][1]) / (path[i][0] - path[i-1][0])
-            if not path[i+1] == None:
-                if (path[i+1][0] - path[i][0]) == 0:
-                    slope_2 = float('inf')
-                else:
-                    slope_2 = (path[i+1][1] - path[i][1]) / (path[i+1][0] - path[i][0])
-            if slope_1 == slope_2:
-                better_path.remove(path[i])
+        for i in range(1, (len(path) - 1)):
+            print(i, path[i - 1], path[i], path[i + 1])
+            # check the prevous node
+            if (path[i][0] - path[i-1][0]) == 0:
+                slope_1 = float('inf')
+            else:
+                slope_1 = (path[i][1] - path[i-1][1]) / (path[i][0] - path[i-1][0])
+            # check the next node
+            if (path[i+1][0] - path[i][0]) == 0:
+                slope_2 = float('inf')
+            else:
+                slope_2 = (path[i+1][1] - path[i][1]) / (path[i+1][0] - path[i][0])
 
+            if slope_1 != slope_2:
+                better_path.append(path[i])
+
+        better_path.append(path[len(path) - 1])
         return better_path
 
         
@@ -418,6 +424,7 @@ class PathPlanner:
         self.A_starPublisher.publish(world_path)
         return world_path
 
+    
     def plan_path(self, msg):
         """
         Plans a path between the start and goal locations in the requested.
