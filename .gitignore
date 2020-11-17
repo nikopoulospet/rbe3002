@@ -7,7 +7,7 @@ learning_tf
 beginner_tutorials
 RBE3002_Turtlebot
 tensorflow-object-detection-ros
-./CMakeLists.txt
+/CMakeLists.txt
 .rosinstall.bak
 .rosinstall
 .gitignore.swp
