@@ -10,11 +10,6 @@
   <env name="GAZEBO_MODEL_PATH" value="$(find RBE3002_template)/models:$(optenv GAZEBO_MODEL_PATH"/>
   <include file="$(find rbe3002-turtlebot)/launch/turtlebot3002_world.launch">
     <arg name="world_name" value="$(find RBE3002_template)/worlds/$(arg maze).world"/>
-    <arg name="paused" value="false"/>
-    <arg name="use_sim_time" value="true"/>
-    <arg name="gui" value="true"/>
-    <arg name="headless" value="false"/>
-    <arg name="debug" value="false"/>
     <arg name="x_pos" default="$(arg x_pos)"/>
     <arg name="y_pos" default="$(arg y_pos)"/>
     <arg name="z_pos" default="$(arg z_pos)"/>
