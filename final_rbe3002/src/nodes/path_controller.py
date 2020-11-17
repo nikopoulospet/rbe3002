@@ -1,35 +1,52 @@
 #!/usr/bin/env python
 
-class PathController
+import math
+import rospy
+
+class PathController:
 
     def _init_(self):
         # Initialize the node and call it "Path Controller"
         rospy.init_node("Path Controller")
         rospy.Rate(10.0)
 
-        options = {0 : findFrontier,
-           1 : pickFrontier,
-           2 : navToPoint,
-           3 : wait2DNavGoal,
-           4 : goToStart,
+        self.state = {0 : self.findFrontier,
+           1 : self.pickFrontier,
+           2 : self.navToPoint,
+           3 : self.wait2DNavGoal,
+           4 : self.goToStart,
         }
 
-        rospy.sleep()
+        rospy.sleep(1.0)
+        rospy.loginfo("Path Controller Node Initalized")
 
-    def findFrontier(self)
+    def findFrontier(self):
+        pass
 
-    def pickFrontier(self)
+    def pickFrontier(self):
+        pass
 
-    def navToPoint(self)
+    def navToPoint(self):
+        pass
 
-    def wait2DNavGoal(self)
+    def wait2DNavGoal(self):
+        pass
 
-    def goToStart(self)
+    def goToStart(self):
+        pass
 
-    def doneNav(self)
+    def doneNav(self):
+        pass
 
-    def foundWholeMap(self)
+    def foundWholeMap(self):
+        pass
 
+    def run(self):
+        rospy.spin()
+
+if __name__ == "__main__":
+    PC = PathController()
+    PC.run()
     
 
         
