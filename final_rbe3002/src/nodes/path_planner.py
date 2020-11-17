@@ -303,7 +303,7 @@ class PathPlanner:
                 break
             for next in PathPlanner.neighbors_of_8(mapdata, current[0], current[1]):
                 #add 1 b/c we will be moving by constant cells
-                new_cost = cost[current] + PathPlanner.euclidean_distance(current[0], current[1], next[0], next[1])
+                new_cost = cost[current] + PathPlanner.euclidean_distance(current[0], current[1], next[0], next[1]) + PathPlanner.calcTurnCost(current, next)
                 if not next in cost or new_cost < cost[next]:
                     cost[next] = new_cost
                     priority = new_cost + PathPlanner.euclidean_distance(goal[0], goal[1], next[0], next[1])
@@ -330,6 +330,20 @@ class PathPlanner:
         self.A_star_checkedPublisher.publish(grid)
         print("Done with A*")
         return path_list
+
+   @staticmethod
+    #adds a cost of 0.01 if the robot has to make a turn between the two positions
+    def calcTurnCost(self, pos1, pos2):
+
+        deltaX = pos2[0] - pos1[0]
+        deltaY = pos2[1] - pos1[1]
+
+        if deltaX == 0 or deltaY == 0:
+            turnCost = 0
+        else:
+            turnCost = 0.01
+
+    return turnCost
 
     @staticmethod
     def optimize_path(path):
