@@ -2,10 +2,10 @@
 
 import rospy
 import math
-from nav_msgs.msg import Odometry
-from nav_msgs.srv import GetPlan
+from nav_msgs.msg import Odometry, Path
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
+from std_msgs.msg import Int16
 from tf.transformations import euler_from_quaternion
 
 class Robot_controller:
@@ -25,13 +25,14 @@ class Robot_controller:
         self.OdometrySubscriber = rospy.Subscriber("/odom", Odometry, self.update_odometry) 
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.go_to
-        self.PoseSubscriber = rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.handle_nav_goal)
+        self.PathSubscriber = rospy.Subscriber("/current_path", Path, self.handle_path)
         ### ROBOT PARAMETERS
         self.px = 0 # pose x
         self.py = 0 # pose y
         self.yaw = 0 # yaw angle
         self.maxWheelSpeed = 0.22 #physcial limit by turtlebot 3
         self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
+        self.cur_path_id = 0
         rospy.loginfo("Rbobot Controller Node Initalized")
 
 
@@ -59,42 +60,6 @@ class Robot_controller:
         vel_msg.angular.z = angular_speed
         ### Publish the message
         self.TwistPublisher.publish(vel_msg)
-
-    def drive(self, distance, linear_speed):
-        """
-        Drives the robot in a straight line.
-        :param distance     [float] [m]   The distance to cover.
-        :param linear_speed [float] [m/s] The forward linear speed.
-        """
-        # save the inital conditions of the robot
-        init_x = self.px
-        init_y = self.py
-        init_angle = self.yaw
-        # drive() peramiters
-        tolerance = 0.01
-        sleep_time = 0.0250
-        # start the robot driving
-        self.send_speed(linear_speed, 0)
-       
-        # control loop for driving
-        run = True
-        while run:
-            # wait till the robot is at the correct distance away within the given tolerance
-            if abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) <= tolerance:
-                # end the control loop
-                run = False
-            else:
-                # control the robot as it drives
-                rospy.sleep(sleep_time)
-                # P control on the robots yaw
-                angular_error = init_angle - self.yaw
-                angular_effort = angular_error * 1
-                # send the speed
-                self.send_speed(linear_speed,angular_effort)
-                
-        # stop the robot from driving
-        self.send_speed(0, 0)
-        rospy.loginfo("Done Driving")
 
     def rotate(self, angle, aspeed):
         """
@@ -132,25 +97,22 @@ class Robot_controller:
         quat_orig = msg.pose.orientation # (x,y,z,w)
         quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
         (roll, pitch, target_yaw) = euler_from_quaternion(quat_list)
+
         # ROTATE 1
         # calculate the angle between current yaw and the target position
         to_target_angle = self.yaw - math.atan2(target_y-self.py,target_x-self.px)
         #Rotate the robot
         self.rotate(to_target_angle, 0.2)
+
         # DRIVE
-        # calculate the distance between the current position and target position
-        to_target_distance = math.sqrt((target_x-self.px)**2 + (target_y-self.py)**2)
-        # drive the calculated distance
-        self.smooth_drive(to_target_distance, 0.2)
+        self.drive_to_point(msg, 0.2)
+
         # ROTATE 2
         # calculate the angle between current yaw and the target final yaw
         to_target_end_angle = self.yaw - target_yaw
         self.rotate(to_target_end_angle, 0.2)
         self.send_speed(0,0)
         rospy.loginfo("Done With go_to")
-
-
-
 
     def update_odometry(self, msg):
         """
@@ -167,52 +129,6 @@ class Robot_controller:
         (roll, pitch, yaw) = euler_from_quaternion(quat_list)
         # update the save yaw
         self.yaw = yaw
-        
-
-
-    def arc_to(self, position):
-        """
-        Drives to a given position in an arc.
-        :param msg [PoseStamped] The target pose.
-        """
-        pass
-
-
-    def smooth_drive(self, distance, linear_speed):
-        """
-        Drives the robot in a straight line by changing the actual speed smoothly.
-        :param distance     [float] [m]   The distance to cover.
-        :param linear_speed [float] [m/s] The maximum forward linear speed.
-        """
-        # the inital robot condition
-        init_x = self.px
-        init_y = self.py
-        init_angle = self.yaw
-        # smooth drive peramiters
-        tolerance = 0.005
-        sleep_time = 0.0250
-
-        # equation = -50 * (t - 0.5)**6 + 1
-        
-        #start of smooth drive control loop
-        run = True
-        while run:
-            # wait till the robot is at the correct pos within the given tolerance
-            if abs(distance - math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) <= tolerance:
-                run = False
-            else:
-                # calculate the persentage of the desired distance travled (0 -> 1)
-                t = abs(math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) / distance
-                # P control on the the robots yaw
-                angular_error = init_angle - self.yaw
-                angular_effort = angular_error * 10
-                # send the speeds the linar speed is mulitplied by the scaler based on t
-                self.send_speed(linear_speed * (-50 * (t - 0.5)**6 + 1), angular_effort)
-                # wait
-                rospy.sleep(sleep_time)
-        # stop the robot from driving
-        self.send_speed(0, 0)
-        rospy.loginfo("Done Smooth Driving")
 
     def drive_to_point(self, point, linear_speed):
         """
@@ -224,59 +140,38 @@ class Robot_controller:
         init_x = self.px
         init_y = self.py
         distance = abs(math.sqrt((point.pose.x - self.px) ** 2 + (point.pose.y - self.py) ** 2))
-        # smooth drive peramiters
+        # drive to point drive peramiters
         tolerance = 0.005
         sleep_time = 0.0250
         
-        #start of smooth drive control loop
-        run = True
-        while run:
-            # wait till the robot is at the correct pos within the given tolerance
-            if abs(math.sqrt((point.pose.x - self.px) ** 2 + (point.pose.y - self.py) ** 2)) <= tolerance:
-                run = False
-            else:
-                # calculate the persentage of the desired distance travled (0 -> 1)
-                t = abs(math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) / distance
-                # P control on the the robots yaw
-                target_angle = math.atan2((point.pose.y - self.py), (point.pose.x - self.px))
-                angular_error = target_angle - self.yaw
-                angular_effort = angular_error * 5
-                # send the speeds the linar speed is mulitplied by the scaler based on t
-                self.send_speed(linear_speed * (-50 * (t - 0.5)**6 + 1), angular_effort)
-                # wait
-                rospy.sleep(sleep_time)
+        #start of drive to point control loop
+        while abs(math.sqrt((point.pose.x - self.px) ** 2 + (point.pose.y - self.py) ** 2)) > tolerance:
+            # calculate the persentage of the desired distance travled (0 -> 1)
+            t = abs(math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) / distance
+            # P control on the the robots yaw
+            target_angle = math.atan2((point.pose.y - self.py), (point.pose.x - self.px))
+            angular_error = target_angle - self.yaw
+            angular_effort = angular_error * 5
+            # send the speeds the linar speed is mulitplied by the scaler based on t
+            self.send_speed(linear_speed * (-50 * (t - 0.5)**6 + 1), angular_effort)
+            # wait
+            rospy.sleep(sleep_time)
         # stop the robot from driving
         self.send_speed(0, 0)
-        rospy.loginfo("Done Smooth Driving")
+        rospy.loginfo("Done Driving to Point")
 
-    def handle_nav_goal(self, msg):
+    def handle_path(self, msg):
+        # making it so if a new path comes in this one is canncelled
+        self.cur_path_id += 1
+        my_id = self.cur_path_id
 
-        cur_pose = PoseStamped()
-
-        cur_pose.pose.position.x = self.px
-        cur_pose.pose.position.y = self.py
-
-        rospy.wait_for_service('plan_path')
-
-        try:
-            plan = rospy.ServiceProxy('plan_path', GetPlan)
-            response = plan(cur_pose, msg, 0.1)
-            print(response)
-            self.handle_a_star(response, msg)
-        except rospy.ServiceException as e:
-            rospy.loginfo("Service failed: %s"%e)
-
-    def handle_a_star(self, response, goal_pt):
-
-        path = response.plan.poses
+        path = msg
 
         for point in path:
-            if point == path[len(path)-1]:
-                #if this is the goal
-                self.go_to(goal_pt)
-            else:
-                self.go_to(point)
-            rospy.sleep(0.2)
+            self.go_to(point)
+            if(my_id != self.cur_path_id):
+                break
+
         rospy.loginfo("Done with A Star path")
 
     def run(self):
