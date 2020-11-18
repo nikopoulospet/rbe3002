@@ -114,8 +114,24 @@ class PathController:
     def goToStart(self):
         pass
 
-    def doneNav(self):
-        pass
+    def doneNav(self, goal_pt):
+        """
+        Checks to to see if the robot has reached the target point
+        :param goal_pt [PoseStamped] the 2D Nav Goal
+        :return [bool] if the robot is at the goal point
+        """
+        #the tolerance for the distance
+        tolerance = 0.01
+
+        # the differance in the x and y cordanits
+        dx = self.robot_x - goal_pt.pose.position.x
+        dy = self.robot_y - goal_pt.pose.position.y
+
+        # find the distance using trig
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+        if (distance > tolerance):
+            return False
+        return True
 
     def foundWholeMap(self):
         pass
