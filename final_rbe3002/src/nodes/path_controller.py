@@ -59,7 +59,7 @@ class PathController:
         Updates the current 2D Nav Goal
         :param msg [PoseStamped] the 2D Nav Goal
         """
-        self.nav_target = msg.pose
+        self.nav_target = msg
         self.new_nav_goal = True
 
     @staticmethod
@@ -109,8 +109,10 @@ class PathController:
 
 
     def wait2DNavGoal(self):
-        pass
-
+        while not self.new_nav_goal:
+            rospy.sleep(0.5)
+        self.state[2](self.nav_target)
+        
     def goToStart(self):
         pass
 
