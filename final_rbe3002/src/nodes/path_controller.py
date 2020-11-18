@@ -2,6 +2,7 @@
 
 import math
 import rospy
+from nav_msgs.srv import GetPlan
 
 class PathController:
 
@@ -27,7 +28,17 @@ class PathController:
         pass
 
     def navToPoint(self):
-        pass
+        rospy.loginfo("Navigating to next point")
+        rospy.wait_for_service("plan_path")
+
+        try:
+            plan = rospy.ServiceProxy('plan_path', GetPlan)
+            response = plan(cur_pose, msg, 0.1)
+            print(response)
+            self.handle_a_star(response, msg)
+        except rospy.ServiceException as e:
+            rospy.loginfo("Service failed: %s"%e)
+        
 
     def wait2DNavGoal(self):
         pass
