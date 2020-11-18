@@ -3,7 +3,7 @@
 import math
 import rospy
 from nav_msgs.msg import Odometry, Path
-from nav_msgs.srv import GetMap
+from nav_msgs.srv import GetMap, GetPlan
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
 
@@ -22,12 +22,18 @@ class PathController:
         ### When a message is received, call self.handle_nav_goal
         self.PoseSubscriber = rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.handle_nav_goal)
         
-        self.state = {0 : self.findFrontier,
-           1 : self.pickFrontier,
-           2 : self.navToPoint,
-           3 : self.wait2DNavGoal,
-           4 : self.goToStart,
+        self.state = {
+        0 : self.findFrontier,
+        1 : self.pickFrontier,
+        2 : self.navToPoint,
+        3 : self.wait2DNavGoal,
+        4 : self.goToStart,
         }
+
+        self.robot_x = 0
+        self.robot_y = 0
+        self.robot_yaw = 0
+        self.prev_state = 0
 
         rospy.sleep(1.0)
         rospy.loginfo("Path Controller Node Initalized")
@@ -79,8 +85,28 @@ class PathController:
     def pickFrontier(self):
         pass
 
-    def navToPoint(self):
-        pass
+    def navToPoint(self, goal):
+        rospy.loginfo("Navigating to next point")
+        rospy.wait_for_service("plan_path")
+
+        cur_pose = PoseStamped()
+        cur_pose.pose.position.x = self.robot_x
+        cur_pose.pose.position.y = self.robot_y
+        try:
+            plan = rospy.ServiceProxy('plan_path', GetPlan)
+            response = plan(cur_pose, goal, 0.1)
+            self.PathPublisher.publish(response)
+        except rospy.ServiceException as e:
+            rospy.loginfo("Service failed: %s"%e)
+        
+        while not self.doneNav(goal):
+            rospy.sleep(0.5)
+        
+        if self.prev_state == 1:
+            self.state[0]()
+        else:
+            self.state[3]()
+
 
     def wait2DNavGoal(self):
         pass
