@@ -3,63 +3,35 @@
 import math
 import rospy
 from nav_msgs.msg import Odometry, Path
-from nav_msgs.srv import GetMap, GetPlan
+from nav_msgs.srv import GetMap, GetPlan, GetPlanResponse
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
 
 class PathController:
 
-    def _init_(self):
+    def __init__(self):
         # Initialize the node and call it "Path Controller"
-        rospy.init_node("Path Controller")
+        rospy.init_node("path_controller", anonymous=True)
         rospy.Rate(10.0)
         ### Tell ROS that this node publishes a Path message on the "/current_path" topic
         self.PathPublisher = rospy.Publisher("/current_path", Path, queue_size=1)
-        ### Tell ROS that this node subscribes to Odometry messages on the '/odom' topic
-        ### When a message is received, call self.update_odometry
-        self.OdometrySubscriber = rospy.Subscriber("/odom", Odometry, self.update_odometry) 
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.handle_nav_goal
         self.PoseSubscriber = rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.handle_nav_goal)
         
-        self.state = {
-        0 : self.findFrontier,
-        1 : self.pickFrontier,
-        2 : self.navToPoint,
-        3 : self.wait2DNavGoal,
-        4 : self.goToStart,
-        }
+        self.get_pathService = rospy.Service("next_path", GetPlan, self.get_path)
 
-        self.robot_x = 0
-        self.robot_y = 0
-        self.robot_yaw = 0
         self.prev_state = 0
-
-        rospy.sleep(1.0)
+        self.new_nav_goal = False
+        rospy.sleep(2.0)
         rospy.loginfo("Path Controller Node Initalized")
-
-    def update_odometry(self, msg):
-        """
-        Updates the current pose of the robot.
-        This method is a callback bound to a Subscriber.
-        :param msg [Odometry] The current odometry information.
-        """
-        # read the pos from the message
-        self.robot_x = msg.pose.pose.position.x
-        self.robot_y = msg.pose.pose.position.y
-        # convert the quarerniaon to a euler angle
-        quat_orig = msg.pose.pose.orientation # (x,y,z,w)
-        quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
-        (roll, pitch, yaw) = euler_from_quaternion(quat_list)
-        # update the save yaw
-        self.robot_yaw = yaw
 
     def handle_nav_goal(self, msg):
         """
         Updates the current 2D Nav Goal
         :param msg [PoseStamped] the 2D Nav Goal
         """
-        self.nav_target = msg.pose
+        self.nav_target = msg
         self.new_nav_goal = True
 
     @staticmethod
@@ -79,6 +51,27 @@ class PathController:
             rospy.loginfo("service call failed: %s" %e)
             return None
 
+    def get_path(self, msg):
+        """
+        """
+        phase = 3
+
+        if phase == 1:
+            #
+            #centriods = self.findFrontier()
+            #
+            #target = self.pickFrontier(centriods)
+            #
+            pass
+        elif phase == 2:
+            target = PoseStamped()
+            target.pose.position.x = 0
+            target.pose.position.y = 0
+        elif phase == 3:
+            target = self.wait2DNavGoal()
+        plan = self.navToPoint(msg.start, target)
+        return GetPlanResponse(plan.plan)
+
     def findFrontier(self):
         frontierList = []
         mapdata = PathController.request_map()
@@ -94,46 +87,28 @@ class PathController:
     def pickFrontier(self):
         pass
 
-    def navToPoint(self, goal):
+    def navToPoint(self,cur_pose, goal):
         rospy.loginfo("Navigating to next point")
         rospy.wait_for_service("plan_path")
 
-        cur_pose = PoseStamped()
-        cur_pose.pose.position.x = self.robot_x
-        cur_pose.pose.position.y = self.robot_y
         try:
             plan = rospy.ServiceProxy('plan_path', GetPlan)
             response = plan(cur_pose, goal, 0.1)
-            self.PathPublisher.publish(response)
+            return response
         except rospy.ServiceException as e:
             rospy.loginfo("Service failed: %s"%e)
-        
-        while not self.doneNav(goal):
-            rospy.sleep(0.5)
-        
-        if self.prev_state == 1:
-            self.state[0]()
-        else:
-            self.state[3]()
 
 
     def wait2DNavGoal(self):
-        pass
-
-    def goToStart(self):
-        pass
-
-    def doneNav(self):
-        pass
-
-    def foundWholeMap(self):
-        pass
+        while not self.new_nav_goal:
+            rospy.sleep(0.5)
+        return self.nav_target
 
     def run(self):
         rospy.spin()
 
 if __name__ == "__main__":
     PC = PathController()
-    PC.run()
+    rospy.spin()
     
 
