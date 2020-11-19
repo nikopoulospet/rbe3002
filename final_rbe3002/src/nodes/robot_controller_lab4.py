@@ -3,9 +3,9 @@
 import rospy
 import math
 from nav_msgs.msg import Odometry, Path
+from nav_msgs.srv import GetPlan
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Int16
 from tf.transformations import euler_from_quaternion
 
 class Robot_controller:
@@ -33,6 +33,7 @@ class Robot_controller:
         self.maxWheelSpeed = 0.22 #physcial limit by turtlebot 3
         self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
         self.cur_path_id = 0
+        self.done_nav_flag = True
         rospy.loginfo("Rbobot Controller Node Initalized")
 
 
@@ -105,7 +106,8 @@ class Robot_controller:
         self.rotate(to_target_angle, 0.2)
 
         # DRIVE
-        self.drive_to_point(msg, 0.2)
+        point = msg.pose.position
+        self.drive_to_point(point, 0.2)
 
         # ROTATE 2
         # calculate the angle between current yaw and the target final yaw
@@ -139,17 +141,17 @@ class Robot_controller:
         # the inital robot condition
         init_x = self.px
         init_y = self.py
-        distance = abs(math.sqrt((point.pose.x - self.px) ** 2 + (point.pose.y - self.py) ** 2))
+        distance = abs(math.sqrt((point.x - self.px) ** 2 + (point.y - self.py) ** 2))
         # drive to point drive peramiters
         tolerance = 0.005
         sleep_time = 0.0250
         
         #start of drive to point control loop
-        while abs(math.sqrt((point.pose.x - self.px) ** 2 + (point.pose.y - self.py) ** 2)) > tolerance:
+        while abs(math.sqrt((point.x - self.px) ** 2 + (point.y - self.py) ** 2)) > tolerance:
             # calculate the persentage of the desired distance travled (0 -> 1)
             t = abs(math.sqrt((self.px - init_x) ** 2 + (self.py - init_y) ** 2)) / distance
             # P control on the the robots yaw
-            target_angle = math.atan2((point.pose.y - self.py), (point.pose.x - self.px))
+            target_angle = math.atan2((point.y - self.py), (point.x - self.px))
             angular_error = target_angle - self.yaw
             angular_effort = angular_error * 5
             # send the speeds the linar speed is mulitplied by the scaler based on t
@@ -165,18 +167,39 @@ class Robot_controller:
         self.cur_path_id += 1
         my_id = self.cur_path_id
 
-        path = msg
+        # get the path from the msg
+        path = msg.plan.poses
 
         for point in path:
             self.go_to(point)
             if(my_id != self.cur_path_id):
+                rospy.loginfo("Path Interupted")
                 break
+        self.done_nav_flag = True
+        rospy.loginfo("Done with Path")
 
-        rospy.loginfo("Done with A Star path")
 
     def run(self):
-        rospy.spin()
+        rospy.wait_for_service('next_path',timeout=None)
+        rospy.wait_for_message('/odom', Odometry)
+        while(1):
+            if(self.done_nav_flag):
+                try:
+                    plan = rospy.ServiceProxy('next_path', GetPlan)
+                    goal = PoseStamped()
+                    cur_pose = PoseStamped()
+                    cur_pose.pose.position.x = self.px
+                    cur_pose.pose.position.y = self.py
+
+                    response = plan(cur_pose, goal, 0.1)
+                    self.done_nav_flag = False
+                    self.handle_path(response)
+                except rospy.ServiceException as e:
+                    rospy.loginfo("Service failed: %s"%e)
+            else:
+                rospy.sleep(1)
 
 if __name__ == '__main__':
     robot = Robot_controller()
+    robot.run()
     rospy.spin()
