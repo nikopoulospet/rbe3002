@@ -318,7 +318,8 @@ class PathPlanner:
             current = came_from[current]
         #path_list.append(current)
         path_list.reverse()
-        path_list.append(goal)
+        if path_list:
+            path_list.append(goal)
 
         # Create a GridCells message
         grid = GridCells()
