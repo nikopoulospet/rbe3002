@@ -303,7 +303,7 @@ class PathPlanner:
                 break
             for next in PathPlanner.neighbors_of_8(mapdata, current[0], current[1]):
                 #add 1 b/c we will be moving by constant cells
-                new_cost = cost[current] + PathPlanner.euclidean_distance(current[0], current[1], next[0], next[1]) 
+                new_cost = cost[current] + PathPlanner.euclidean_distance(current[0], current[1], next[0], next[1]) + PathPlanner.calcTurnCost(came_from[current],current,next)
                 if not next in cost or new_cost < cost[next]:
                     cost[next] = new_cost
                     priority = new_cost + PathPlanner.euclidean_distance(goal[0], goal[1], next[0], next[1])
@@ -316,7 +316,9 @@ class PathPlanner:
         while not came_from[current] == 0:
             path_list.append(current)
             current = came_from[current]
+        #path_list.append(current)
         path_list.reverse()
+        path_list.append(goal)
 
         # Create a GridCells message
         grid = GridCells()
@@ -333,17 +335,22 @@ class PathPlanner:
 
     @staticmethod
     #adds a cost of 0.01 if the robot has to make a turn between the two positions
-    def calcTurnCost(self, pos1, pos2):
+    def calcTurnCost(pos0,pos1, pos2):
+        if pos0 == 0:
+            return 0
+        theta1 = PathPlanner.calcAngle(pos0,pos1)
+        theta2 = PathPlanner.calcAngle(pos1,pos2)    
+        return (theta1 - theta2) * 0.01
 
-        deltaX = pos2[0] - pos1[0]
-        deltaY = pos2[1] - pos1[1]
-
-        if deltaX == 0 or deltaY == 0:
-            turnCost = 0
-        else:
-            turnCost = 0.01
-
-        return turnCost
+    @staticmethod
+    def calcAngle(start,end):
+        """
+        calculates the angle between 2 grid points
+        :param start (x,y)
+        :param end (x,y)
+        :return theta
+        """
+        return math.atan2(end[1]-start[1],end[0]-start[0])
 
     @staticmethod
     def optimize_path(path):
