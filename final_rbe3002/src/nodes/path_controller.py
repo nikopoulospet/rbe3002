@@ -80,7 +80,16 @@ class PathController:
             return None
 
     def findFrontier(self):
-        pass
+        frontierList = []
+        mapdata = PathController.request_map()
+
+        for i in range(len(mapdata.data)):
+            
+
+
+
+
+        return frontierList
 
     def pickFrontier(self):
         pass
