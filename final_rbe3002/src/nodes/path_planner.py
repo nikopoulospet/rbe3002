@@ -248,6 +248,13 @@ class PathPlanner:
 
         # define padded grid list
         padded_grid = []
+        grid = GridCells()
+        grid.header.frame_id = "map"
+        grid.cells = padded_grid
+        grid.cell_width = mapdata.info.resolution
+        grid.cell_height = mapdata.info.resolution
+        self.C_spacePublisher.publish(grid)
+
         sizeOF = (mapdata.info.width * mapdata.info.height)
         padded_map = [0] * sizeOF #set all values in new list to walkable
 
@@ -341,17 +348,32 @@ class PathPlanner:
             return 0
         theta1 = PathPlanner.calcAngle(pos0,pos1)
         theta2 = PathPlanner.calcAngle(pos1,pos2)    
-        return (theta1 - theta2) * 0.01
+        return abs(abs(theta1) - abs(theta2)) * 0.05
 
     @staticmethod
     def calcAngle(start,end):
         """
         calculates the angle between 2 grid points
-        :param start (x,y)
-        :param end (x,y)
-        :return theta
+        :param start [(x,y)]
+        :param end [(x,y)]
+        :return [float]
         """
         return math.atan2(end[1]-start[1],end[0]-start[0])
+
+    @staticmethod
+    def checkJunk(start,end,tolerance):
+        """
+        Checks to see if the start and end poses are too close to bother generating a path
+        :param start [(x,y)]
+        :param end [(x,y)]
+        :param tolerance [int]
+        :return [bool]
+        """
+        for i in range(start[0]-tolerance,start[0]+tolerance+1):
+            for j in range(start[1]-tolerance,start[1]+tolerance+1):
+                if end == (i,j):
+                    return True
+        return False
 
     @staticmethod
     def optimize_path(path):
@@ -401,6 +423,7 @@ class PathPlanner:
         """
         # initilize the path variable
         world_path = Path()
+        world_path.poses = []
         world_path.header.frame_id = "map"
         # loop through the path
         for index in range(0,len(path)):
@@ -443,14 +466,18 @@ class PathPlanner:
         mapdata = PathPlanner.request_map()
         if mapdata is None:
             return Path()
-        # Calculate the C-space and publish it
-        cspacedata = self.calc_cspace(mapdata, 2)
-        # Execute A*
+        
         start = PathPlanner.world_to_grid(mapdata, msg.start.pose.position)
         goal = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
-        path = self.a_star(cspacedata, start, goal)
-        # Optimize waypoints
-        waypoints = PathPlanner.optimize_path(path)
+        waypoints = []
+        if not PathPlanner.checkJunk(start,goal,2):
+            # Calculate the C-space and publish it
+            cspacedata = self.calc_cspace(mapdata, 3)
+            # Execute A*
+            path = self.a_star(cspacedata, start, goal)
+            # Optimize waypoints
+            waypoints = PathPlanner.optimize_path(path)
+            
         # Return a Path message
         return GetPlanResponse(self.path_to_message(mapdata, waypoints))
 
