@@ -11,7 +11,7 @@ from tf.transformations import quaternion_from_euler
 
 class PathPlanner:
 
-    def __init__(self):
+    def __init__(self, Node = True):
         """
         Class constructor
         """
@@ -21,6 +21,8 @@ class PathPlanner:
         # Create a new service called "plan_path" that accepts messages of
         # type GetPlan and calls self.plan_path() when a message is received
         self.path_planService = rospy.Service("plan_path", GetPlan, self.plan_path)
+        # Create a new service to calculate and return the Cspace
+        self.C_spaceService = rospy.Service("get_CSpace", GetMap, self.get_Cspace)
         # Create a publisher for the C-space (the enlarged occupancy grid)
         # The topic is "/path_planner/cspace", the message type is GridCells
         self.C_spacePublisher = rospy.Publisher("/path_planner/cspace", GridCells, queue_size=1)
@@ -32,6 +34,7 @@ class PathPlanner:
         self.A_starPublisher = rospy.Publisher("/path_planner/astar_path", Path, queue_size=1)
         # Initialize the request counter
         self.requestCounter = 0
+        self.current_map_data = None
         # Sleep to allow roscore to do some housekeeping
         rospy.sleep(1.0)
         rospy.loginfo("Path planner node ready")
@@ -223,17 +226,20 @@ class PathPlanner:
         :return [OccupancyGrid] The grid if the service call was successful,
                                 None in case of error.
         """
-        rospy.loginfo("Requesting the map")
-        rospy.wait_for_service('dynamic_map')
-        try:
-            static_map_service = rospy.ServiceProxy('dynamic_map', GetMap)
-            responce = static_map_service()
-            return responce.map
-        except rospy.ServiceException as e:
-            rospy.loginfo("service call failed: %s" %e)
-            return None
+        if self.current_map_data:
+            return self.current_map_data
+        else:
+            rospy.loginfo("Requesting the map")
+            rospy.wait_for_service('dynamic_map')
+            try:
+                static_map_service = rospy.ServiceProxy('dynamic_map', GetMap)
+                responce = static_map_service()
+                return responce.map
+            except rospy.ServiceException as e:
+                rospy.loginfo("service call failed: %s" %e)
+                return None
 
-    def calc_cspace(self, mapdata, padding):
+    def calc_cspace(self, mapdata, padding, publish):
         """
         Calculates the C-Space, i.e., makes the obstacles in the map thicker.
         Publishes the list of cells that were added to the original map.
@@ -253,7 +259,7 @@ class PathPlanner:
         grid.cells = padded_grid
         grid.cell_width = mapdata.info.resolution
         grid.cell_height = mapdata.info.resolution
-        self.C_spacePublisher.publish(grid)
+        if publish: self.C_spacePublisher.publish(grid)
 
         sizeOF = (mapdata.info.width * mapdata.info.height)
         padded_map = [0] * sizeOF #set all values in new list to walkable
@@ -284,7 +290,7 @@ class PathPlanner:
         grid.cells = padded_grid
         grid.cell_width = mapdata.info.resolution
         grid.cell_height = mapdata.info.resolution
-        self.C_spacePublisher.publish(grid)
+        if publish: self.C_spacePublisher.publish(grid)
         # Return the C-space with padded map array
         mapdata.data = padded_map
         return mapdata
@@ -472,7 +478,7 @@ class PathPlanner:
         waypoints = []
         if not PathPlanner.checkJunk(start,goal,2):
             # Calculate the C-space and publish it
-            cspacedata = self.calc_cspace(mapdata, 3)
+            cspacedata = self.calc_cspace(mapdata, 3, True)
             # Execute A*
             path = self.a_star(cspacedata, start, goal)
             # Optimize waypoints
@@ -480,6 +486,9 @@ class PathPlanner:
             
         # Return a Path message
         return GetPlanResponse(self.path_to_message(mapdata, waypoints))
+    
+    def get_CSpace(self):
+        pass
 
     def run(self):
         """

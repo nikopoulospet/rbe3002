@@ -23,6 +23,7 @@ class PathController:
 
         self.prev_state = 0
         self.new_nav_goal = False
+
         rospy.sleep(2.0)
         rospy.loginfo("Path Controller Node Initalized")
 
@@ -60,7 +61,7 @@ class PathController:
         while not target or not plan:
             if phase == 1:
                 #
-                #centriods = self.findFrontier()
+                centriods = self.findFrontier()
                 #
                 #target = self.pickFrontier(centriods)
                 #
