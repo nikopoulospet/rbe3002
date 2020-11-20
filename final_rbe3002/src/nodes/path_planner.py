@@ -248,6 +248,13 @@ class PathPlanner:
 
         # define padded grid list
         padded_grid = []
+        grid = GridCells()
+        grid.header.frame_id = "map"
+        grid.cells = padded_grid
+        grid.cell_width = mapdata.info.resolution
+        grid.cell_height = mapdata.info.resolution
+        self.C_spacePublisher.publish(grid)
+
         sizeOF = (mapdata.info.width * mapdata.info.height)
         padded_map = [0] * sizeOF #set all values in new list to walkable
 
@@ -318,7 +325,7 @@ class PathPlanner:
             current = came_from[current]
         #path_list.append(current)
         path_list.reverse()
-        if path_list:
+        if len(path_list) > 0:
             path_list.append(goal)
 
         # Create a GridCells message
@@ -444,13 +451,15 @@ class PathPlanner:
         if mapdata is None:
             return Path()
         # Calculate the C-space and publish it
-        cspacedata = self.calc_cspace(mapdata, 2)
+        cspacedata = self.calc_cspace(mapdata, 3)
         # Execute A*
         start = PathPlanner.world_to_grid(mapdata, msg.start.pose.position)
         goal = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
         path = self.a_star(cspacedata, start, goal)
         # Optimize waypoints
-        waypoints = PathPlanner.optimize_path(path)
+        waypoints = []
+        if len(path) > 1:
+            waypoints = PathPlanner.optimize_path(path)
         # Return a Path message
         return GetPlanResponse(self.path_to_message(mapdata, waypoints))
 

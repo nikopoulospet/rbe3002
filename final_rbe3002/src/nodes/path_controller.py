@@ -55,21 +55,23 @@ class PathController:
         """
         """
         phase = 3
+        plan = None
+        while not plan:
+            if phase == 1:
+                #
+                #centriods = self.findFrontier()
+                #
+                #target = self.pickFrontier(centriods)
+                #
+                pass
+            elif phase == 2:
+                target = PoseStamped()
+                target.pose.position.x = 0
+                target.pose.position.y = 0
+            elif phase == 3:
+                target = self.wait2DNavGoal()
+            plan = self.navToPoint(msg.start, target)
 
-        if phase == 1:
-            #
-            #centriods = self.findFrontier()
-            #
-            #target = self.pickFrontier(centriods)
-            #
-            pass
-        elif phase == 2:
-            target = PoseStamped()
-            target.pose.position.x = 0
-            target.pose.position.y = 0
-        elif phase == 3:
-            target = self.wait2DNavGoal()
-        plan = self.navToPoint(msg.start, target)
         return GetPlanResponse(plan.plan)
 
     def findFrontier(self):
@@ -85,6 +87,8 @@ class PathController:
         try:
             plan = rospy.ServiceProxy('plan_path', GetPlan)
             response = plan(cur_pose, goal, 0.1)
+            if len(response.plan.poses) < 3:
+                response = None
             return response
         except rospy.ServiceException as e:
             rospy.loginfo("Service failed: %s"%e)

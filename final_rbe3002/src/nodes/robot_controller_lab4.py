@@ -71,7 +71,8 @@ class Robot_controller:
         :param angular_speed [float] [rad/s] The angular speed.
         """
         # peramiters
-        tolerance = 0.01
+        #tolerance = 0.01
+        tolerance = 0.025
         sleep_time = 0.0250
         # intial robot conition
         start_angle = self.yaw
@@ -142,7 +143,8 @@ class Robot_controller:
         """
         rospy.loginfo("Driving to Point")
         # drive to point drive peramiters
-        tolerance = 0.025
+        #tolerance = 0.025
+        tolerance = 0.05
         sleep_time = 0.05
         
 
@@ -151,9 +153,9 @@ class Robot_controller:
         Ki = 0.03
         Kd = 0.0001
 
-        Rp = 4
-        Ri = 0.0001
-        Rd = 0.000001
+        Rp = 4.5
+        Ri = 0.025
+        Rd = 0.00025
         p_error_old = 0
         angular_error_old = 0
         last_time = 0
@@ -236,6 +238,7 @@ class Robot_controller:
 
                     response = plan(cur_pose, goal, 0.15)
                     self.done_nav_flag = False
+                    print(response)
                     self.handle_path(response)
                 except rospy.ServiceException as e:
                     rospy.loginfo("Service failed: %s"%e)
