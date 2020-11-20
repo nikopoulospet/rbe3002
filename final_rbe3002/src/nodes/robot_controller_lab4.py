@@ -70,19 +70,52 @@ class Robot_controller:
         :param angle         [float] [rad]   The distance to cover.
         :param angular_speed [float] [rad/s] The angular speed.
         """
+        rospy.loginfo("Started Rotate")
         # peramiters
-        tolerance = 0.01
+        tolerance = 0.02
         sleep_time = 0.0250
         # intial robot conition
         start_angle = self.yaw
-        target_angle = start_angle - angle
+        target_angle = start_angle - angle + math.pi*4
+        current_angle = self.yaw + 4*math.pi
         # wait till the robot is at the correct angle within the given tolerance
-        while((abs(start_angle - (self.yaw + angle))) > tolerance):
-            # p controlle on the angle
-            angular_error = target_angle - self.yaw
-            angular_effort = angular_error * 3
-            # send the speeds the linar speed is mulitplied by the scaler based on t
-            self.send_speed(0, angular_effort)
+
+        Rp = 3
+        Ri = 0.003
+        Rd = -0.0000
+
+        angular_effort = 0
+        angular_effort_old = 0
+        last_time = 0
+        start_time = rospy.get_rostime().nsecs/1000000
+        angular_error_queue = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+
+        while((abs(target_angle - (current_angle))) > tolerance):
+            current_time = rospy.get_rostime().nsecs/1000000
+            ## Angular PID
+            # P control on the the robots yaw
+            current_angle = self.yaw + 4*math.pi
+            angular_error = (current_angle - target_angle + math.pi) % (math.pi*2) - math.pi
+            angular_error_p = (angular_error if angular_error > -math.pi else angular_error + (math.pi*2))
+            # I control on the robots yaw
+            angular_error_queue.pop(0)
+            angular_error_queue.append(angular_error_p)
+            angular_error_i = sum(angular_error_queue)
+            # D control on the robots yaw
+            angular_error_d = (angular_effort - angular_effort_old) / (current_time - last_time)
+            # angular effort
+            angular_effort_old = angular_effort
+            angular_effort = (angular_error_p * Rp) + (angular_error_i * Ri) + (angular_error_d * Rd)
+            
+            #print(round(angular_effort, 3),round(angular_error_p * Rp, 3),round(angular_error_i * Ri, 3),round(angular_error_d * Rd, 3))
+
+            self.send_speed(0, -angular_effort)
+            last_time = current_time
+            rospy.sleep(sleep_time)
+            # failsafe
+            if (current_time - start_time > 5000):
+                rospy.loginfo("Rotating Fail-Safe triggered")
+                break
         # stop the robot from spinning
         self.send_speed(0,0)
         rospy.loginfo("Done Rotating")
@@ -143,7 +176,7 @@ class Robot_controller:
         rospy.loginfo("Driving to Point")
         # drive to point drive peramiters
         tolerance = 0.025
-        sleep_time = 0.05
+        sleep_time = 0.06
         
 
         # PID variables
@@ -151,14 +184,15 @@ class Robot_controller:
         Ki = 0.03
         Kd = 0.0001
 
-        Rp = 4
-        Ri = 0.0001
-        Rd = 0.000001
+        Rp = 3
+        Ri = 0.001
+        Rd = -0.0000
         p_error_old = 0
-        angular_error_old = 0
+        angular_effort=0
+        angular_effort_old = 0
         last_time = 0
         error_queue = [0,0,0,0,0,0,0,0,0,0]
-        angular_error_queue = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+        angular_error_queue = [0,0,0,0,0,0,0,0,0,0,0,0,0]
         #start of drive to point control loop
         while abs(math.sqrt((point.x - self.px) ** 2 + (point.y - self.py) ** 2)) > tolerance:
             #timing the loop
@@ -180,27 +214,30 @@ class Robot_controller:
 
             ## Angular PID
             # P control on the the robots yaw
-            target_angle = math.atan2((point.y - self.py), (point.x - self.px))
-            current_angle = self.yaw
-            angular_error_p = current_angle - target_angle
-            angular_error_p = ((angular_error_p + math.pi) % 2*math.pi - math.pi) * -1
+            target_angle = math.atan2((point.y - self.py), (point.x - self.px)) + 4*math.pi
+            current_angle = self.yaw + 4*math.pi
+            angular_error = (current_angle - target_angle + math.pi) % (math.pi*2) - math.pi
+            angular_error_p = (angular_error if angular_error > -math.pi else angular_error + (math.pi*2))
             # I control on the robots yaw
             angular_error_queue.pop(0)
             angular_error_queue.append(angular_error_p)
             angular_error_i = sum(angular_error_queue)
             # D control on the robots yaw
-            angular_error_d = (angular_error_p - angular_error_old) / (current_time - last_time)
+            angular_error_d = (angular_effort - angular_effort_old) / (current_time - last_time)
             # angular effort
-            angular_effort = (angular_error_p * Rp) + (angular_error_i * Ri) - (angular_error_d * Rd)
-
+            angular_effort_old = angular_effort
+            angular_effort = (angular_error_p * Rp) + (angular_error_i * Ri) + (angular_error_d * Rd)
+            
+            #print(round(angular_effort, 3),round(angular_error_p * Rp, 3),round(angular_error_i * Ri, 3),round(angular_error_d * Rd, 3))
             # send the speeds the linar speed is mulitplied by the scaler based on t
-            self.send_speed(linear_effort, angular_effort)
+            self.send_speed(linear_effort, -angular_effort)
             # wait
+            last_time = current_time
             rospy.sleep(sleep_time)
             # variables for next loop
             p_error_old = p_error
-            angular_error_old = angular_error_p
-            last_time = current_time
+            
+            
         # stop the robot from driving
         self.send_speed(0, 0)
         rospy.loginfo("Done Driving to Point")
