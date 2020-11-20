@@ -29,9 +29,7 @@
   <include file="$(find turtlebot3_navigation)/launch/amcl.launch"/>
 
   <!-- Robot control nodes -->
-<!--
   <node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4"/>
--->
   <node name="path_planner" pkg="final_rbe3002" type="path_planner.py"/>
   <node name="path_controller" pkg="final_rbe3002" type="path_controller.py"/>
 

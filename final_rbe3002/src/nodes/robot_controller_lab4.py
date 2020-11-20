@@ -72,7 +72,8 @@ class Robot_controller:
         """
         rospy.loginfo("Started Rotate")
         # peramiters
-        tolerance = 0.02
+        #tolerance = 0.01
+        tolerance = 0.025
         sleep_time = 0.0250
         # intial robot conition
         start_angle = self.yaw
@@ -273,6 +274,7 @@ class Robot_controller:
 
                     response = plan(cur_pose, goal, 0.15)
                     self.done_nav_flag = False
+                    print(response)
                     self.handle_path(response)
                 except rospy.ServiceException as e:
                     rospy.loginfo("Service failed: %s"%e)
