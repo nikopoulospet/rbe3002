@@ -55,8 +55,9 @@ class PathController:
         """
         """
         phase = 3
+        target = None
         plan = None
-        while not plan:
+        while not target or not plan:
             if phase == 1:
                 #
                 #centriods = self.findFrontier()
@@ -70,6 +71,7 @@ class PathController:
                 target.pose.position.y = 0
             elif phase == 3:
                 target = self.wait2DNavGoal()
+            
             plan = self.navToPoint(msg.start, target)
 
         return GetPlanResponse(plan.plan)
@@ -87,8 +89,8 @@ class PathController:
         try:
             plan = rospy.ServiceProxy('plan_path', GetPlan)
             response = plan(cur_pose, goal, 0.1)
-            if len(response.plan.poses) < 3:
-                response = None
+            if len(response.plan.poses) < 1:
+                return None
             return response
         except rospy.ServiceException as e:
             rospy.loginfo("Service failed: %s"%e)
