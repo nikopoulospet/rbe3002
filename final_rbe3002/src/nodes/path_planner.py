@@ -226,18 +226,15 @@ class PathPlanner:
         :return [OccupancyGrid] The grid if the service call was successful,
                                 None in case of error.
         """
-        if self.current_map_data:
-            return self.current_map_data
-        else:
-            rospy.loginfo("Requesting the map")
-            rospy.wait_for_service('dynamic_map')
-            try:
-                static_map_service = rospy.ServiceProxy('dynamic_map', GetMap)
-                responce = static_map_service()
-                return responce.map
-            except rospy.ServiceException as e:
-                rospy.loginfo("service call failed: %s" %e)
-                return None
+        rospy.loginfo("Requesting the map")
+        rospy.wait_for_service('dynamic_map')
+        try:
+            static_map_service = rospy.ServiceProxy('dynamic_map', GetMap)
+            responce = static_map_service()
+            return responce.map
+        except rospy.ServiceException as e:
+            rospy.loginfo("service call failed: %s" %e)
+            return None
 
     def calc_cspace(self, mapdata, padding, publish):
         """
