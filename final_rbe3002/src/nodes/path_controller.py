@@ -2,6 +2,9 @@
 
 import math
 import rospy
+import numpy as np
+import cv2
+from path_planner import PathPlanner
 from nav_msgs.msg import Odometry, Path
 from nav_msgs.srv import GetMap, GetPlan, GetPlanResponse
 from geometry_msgs.msg import PoseStamped
@@ -55,12 +58,12 @@ class PathController:
         """
         """
         phase = 3
-
+        rospy.loginfo("see images")
         if phase == 1:
+            mapdata = PathPlanner.request_map()
+            centriods = self.findFrontier(True)
             #
-            #centriods = self.findFrontier()
-            #
-            #target = self.pickFrontier(centriods)
+            target = self.pickFrontier(centriods)
             #
             pass
         elif phase == 2:
@@ -72,11 +75,60 @@ class PathController:
         plan = self.navToPoint(msg.start, target)
         return GetPlanResponse(plan.plan)
 
-    def findFrontier(self):
-        pass
+    def pickFrontier(self, keypoints):
+        max_key = cv2.KeyPoint()
+        max_key.size = 0
+        for key in keypoints:
+            if key.size > max_key.size:
+                max_key = key
+        return max_key
 
-    def pickFrontier(self):
-        pass
+
+    def findFrontier(self,mapdata, debug=False):
+        """
+        generates Keypoints based on map data, this method performes a map service call
+        :param: Debug [boolean]
+        :return: keypoints [cv2.keypoints]
+        """
+        image = np.array(mapdata.data)
+        image = np.reshape(image, (-1,mapdata.info.width))
+        walls = np.copy(image)
+        walls[walls < 100] = 0
+        walls[walls >= 100] = 255
+        image[image > 0] = 255
+        walls = walls.astype(np.uint8)
+        image = image.astype(np.uint8)
+        evidence_grid = cv2.Canny(image,99,100)
+
+        kernel = np.ones((3,3), np.uint8)
+        img_dilation = cv2.dilate(evidence_grid, kernel, iterations=1)
+        subtracted = np.subtract(img_dilation,walls) 
+        img_erosion = cv2.erode(subtracted, kernel, iterations=1)
+        img_erosion = cv2.dilate(img_erosion, kernel, iterations=5)
+        
+
+        params = cv2.SimpleBlobDetector_Params()
+        params.minThreshold = 200
+        params.filterByColor = False
+        params.filterByArea = False
+        params.filterByCircularity = False
+        params.filterByConvexity = False
+        params.filterByInertia = False
+
+        detector = cv2.SimpleBlobDetector_create(params)
+        detector.empty()
+        keypoints = detector.detect(img_erosion)
+
+        if debug:
+            print(keypoints)
+            for key in keypoints:
+                print(key.size)
+            im_with_keypoints = cv2.drawKeypoints(img_erosion, keypoints, np.array([]), (0,255,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            cv2.imshow("evidnce_grid",im_with_keypoints)
+            cv2.waitKey(0)
+        
+        return keypoints
+
 
     def navToPoint(self,cur_pose, goal):
         rospy.loginfo("Navigating to next point")
