@@ -258,7 +258,10 @@ class PathPlanner:
         self.C_spacePublisher.publish(grid)
 
         sizeOF = (mapdata.info.width * mapdata.info.height)
-        padded_map = [0] * sizeOF #set all values in new list to walkable
+        padded_map = []
+        for cell in mapdata.data:
+            padded_map.append(cell)
+            #[0] * sizeOF #set all values in new list to walkable
 
         # Apply kernel to grid and create padded grid
         x = 0
@@ -471,6 +474,7 @@ class PathPlanner:
         walls = walls.astype(np.uint8)
         image = image.astype(np.uint8)
 
+        
         evidence_grid = cv2.Canny(image,99,100)
 
         kernel = np.ones((3,3), np.uint8)
@@ -491,13 +495,15 @@ class PathPlanner:
         detector = cv2.SimpleBlobDetector_create(params)
         detector.empty()
         keypoints = detector.detect(img_erosion)
-
+        
         if debug:
             print(keypoints)
             for key in keypoints:
                 print(key.size)
             im_with_keypoints = cv2.drawKeypoints(img_erosion, keypoints, np.array([]), (0,255,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             cv2.imshow("evidnce_grid",im_with_keypoints)
+            cv2.imshow("walls",walls)
+            cv2.imshow("eg",image)
             cv2.waitKey(0)
         
         return keypoints
@@ -508,8 +514,9 @@ class PathPlanner:
         for key in keypoints:
             if key.size > max_key.size:
                 max_key = key
-            
-        return max_key.pt
+        
+        point = (int(max_key.pt[0]),int(max_key.pt[1]))
+        return point
 
     
     def plan_path(self, msg):
