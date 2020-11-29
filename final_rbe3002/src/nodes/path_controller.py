@@ -2,8 +2,11 @@
 
 import math
 import rospy
-from nav_msgs.msg import Odometry, Path
-from nav_msgs.srv import GetMap, GetPlan, GetPlanResponse
+import numpy as np
+import cv2
+from path_planner import PathPlanner
+from nav_msgs.msg import Odometry, Path, OccupancyGrid
+from nav_msgs.srv import GetMap, GetMapResponse, GetPlan, GetPlanResponse
 from geometry_msgs.msg import PoseStamped
 from tf.transformations import euler_from_quaternion
 
@@ -23,7 +26,7 @@ class PathController:
 
         self.prev_state = 0
         self.new_nav_goal = False
-        rospy.sleep(2.0)
+        rospy.sleep(3.0)
         rospy.loginfo("Path Controller Node Initalized")
 
     def handle_nav_goal(self, msg):
@@ -54,41 +57,33 @@ class PathController:
     def get_path(self, msg):
         """
         """
-        phase = 3
+        phase = 1
         target = None
         plan = None
         while not target or not plan:
             if phase == 1:
-                #
-                #centriods = self.findFrontier()
-                #
-                #target = self.pickFrontier(centriods)
-                #
-                pass
+                target = PoseStamped()
+
             elif phase == 2:
                 target = PoseStamped()
                 target.pose.position.x = 0
                 target.pose.position.y = 0
+
             elif phase == 3:
                 target = self.wait2DNavGoal()
             
-            plan = self.navToPoint(msg.start, target)
+            plan = self.navToPoint(msg.start, target, phase)
 
         return GetPlanResponse(plan.plan)
 
-    def findFrontier(self):
-        pass
-
-    def pickFrontier(self):
-        pass
-
-    def navToPoint(self,cur_pose, goal):
+    def navToPoint(self,cur_pose, goal, phase):
         rospy.loginfo("Navigating to next point")
         rospy.wait_for_service("plan_path")
-
+        if not goal:
+            return None
         try:
             plan = rospy.ServiceProxy('plan_path', GetPlan)
-            response = plan(cur_pose, goal, 0.1)
+            response = plan(cur_pose, goal, phase) # use tolerance feild for phase info
             if len(response.plan.poses) < 1:
                 return None
             return response

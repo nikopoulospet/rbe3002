@@ -2,6 +2,8 @@
 
 import math
 import rospy
+import numpy as np
+import cv2
 from priority_queue import PriorityQueue
 from nav_msgs.srv import GetPlan, GetPlanResponse, GetMap
 from nav_msgs.msg import GridCells, OccupancyGrid, Path
@@ -88,7 +90,7 @@ class PathPlanner:
         real_world_x = resolution * (x + 0.5) + orginX
         real_world_y = resolution * (y + 0.5) + orginY
         # make the real world Point
-        point = Point(real_world_x, real_world_y, 0.)
+        point = Point(real_world_x, real_world_y, 0)
         # return the point
         return point
 
@@ -226,8 +228,8 @@ class PathPlanner:
         rospy.loginfo("Requesting the map")
         rospy.wait_for_service('dynamic_map')
         try:
-            static_map_service = rospy.ServiceProxy('dynamic_map', GetMap)
-            responce = static_map_service()
+            map_service = rospy.ServiceProxy('dynamic_map', GetMap)
+            responce = map_service()
             return responce.map
         except rospy.ServiceException as e:
             rospy.loginfo("service call failed: %s" %e)
@@ -256,7 +258,10 @@ class PathPlanner:
         self.C_spacePublisher.publish(grid)
 
         sizeOF = (mapdata.info.width * mapdata.info.height)
-        padded_map = [0] * sizeOF #set all values in new list to walkable
+        padded_map = []
+        for cell in mapdata.data:
+            padded_map.append(cell)
+            #[0] * sizeOF #set all values in new list to walkable
 
         # Apply kernel to grid and create padded grid
         x = 0
@@ -454,6 +459,65 @@ class PathPlanner:
         # return the path
         return world_path
 
+    def findFrontier(self,mapdata, debug=False):
+        """
+        generates Keypoints based on map data, this method performes a map service call
+        :param: Debug [boolean]
+        :return: keypoints [cv2.keypoints]
+        """
+        image = np.array(mapdata.data)
+        image = np.reshape(image, (-1,mapdata.info.width))
+        walls = np.copy(image)
+        walls[walls < 100] = 0
+        walls[walls >= 100] = 255
+        image[image > 0] = 255
+        walls = walls.astype(np.uint8)
+        image = image.astype(np.uint8)
+
+        
+        evidence_grid = cv2.Canny(image,99,100)
+
+        kernel = np.ones((3,3), np.uint8)
+        img_dilation = cv2.dilate(evidence_grid, kernel, iterations=1)
+        subtracted = np.subtract(img_dilation,walls) 
+        img_erosion = cv2.erode(subtracted, kernel, iterations=1)
+        img_erosion = cv2.dilate(img_erosion, kernel, iterations=5)
+        
+
+        params = cv2.SimpleBlobDetector_Params()
+        params.minThreshold = 200
+        params.filterByColor = False
+        params.filterByArea = False
+        params.filterByCircularity = False
+        params.filterByConvexity = False
+        params.filterByInertia = False
+
+        detector = cv2.SimpleBlobDetector_create(params)
+        detector.empty()
+        keypoints = detector.detect(img_erosion)
+        
+        if debug:
+            print(keypoints)
+            for key in keypoints:
+                print(key.size)
+            im_with_keypoints = cv2.drawKeypoints(img_erosion, keypoints, np.array([]), (0,255,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            cv2.imshow("evidnce_grid",im_with_keypoints)
+            cv2.imshow("walls",walls)
+            cv2.imshow("eg",image)
+            cv2.waitKey(0)
+        
+        return keypoints
+        
+    def pickFrontier(self, keypoints): #update to take into account the distance away we are from each point
+        max_key = cv2.KeyPoint()
+        max_key.size = 0
+        for key in keypoints:
+            if key.size > max_key.size:
+                max_key = key
+        
+        point = (int(max_key.pt[0]),int(max_key.pt[1]))
+        return point
+
     
     def plan_path(self, msg):
         """
@@ -466,13 +530,20 @@ class PathPlanner:
         mapdata = PathPlanner.request_map()
         if mapdata is None:
             return Path()
-        
+        # msg.tolerance is the phase number
         start = PathPlanner.world_to_grid(mapdata, msg.start.pose.position)
         goal = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
+        phase = msg.tolerance
         waypoints = []
         if not PathPlanner.checkJunk(start,goal,2):
             # Calculate the C-space and publish it
             cspacedata = self.calc_cspace(mapdata, 3)
+            # calc frontier
+            if phase == 1:
+                print("calc fronteir")
+                keypoints = self.findFrontier(cspacedata,False)
+                goal = self.pickFrontier(keypoints)
+                print(goal)
             # Execute A*
             path = self.a_star(cspacedata, start, goal)
             # Optimize waypoints
