@@ -10,7 +10,6 @@ from nav_msgs.msg import GridCells, OccupancyGrid, Path
 from geometry_msgs.msg import Point, Pose, PoseStamped, Quaternion
 from tf.transformations import quaternion_from_euler
 
-
 class PathPlanner:
 
     def __init__(self):
@@ -518,7 +517,6 @@ class PathPlanner:
         point = (int(max_key.pt[0]),int(max_key.pt[1]))
         return point
 
-    
     def plan_path(self, msg):
         """
         Plans a path between the start and goal locations in the requested.

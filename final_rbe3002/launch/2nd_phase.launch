@@ -1,0 +1,13 @@
+<launch>
+  <param name="phase" value = "2" />
+
+  <!-- map server -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find final_rbe3002)/maps/saved_map.yaml" />
+
+  <!-- AMCL -->
+  <include file="$(find turtlebot3_navigation)/launch/amcl.launch"/>
+
+  <!-- Path Controller node -->
+  <node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="screen"/>
+
+</launch>

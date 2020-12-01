@@ -1,6 +1,4 @@
 <launch>
-  <param name="phase" value = "1" />
-
   <!-- Gazebo stuff -->
   <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
   <arg name="x_pos" default="0.40"/>
@@ -9,8 +7,8 @@
   <arg name="maze"  default="maze2" />
 
   <node pkg="tf" type="static_transform_publisher" name="camera_tf" args="-1.95 -0.55 2.0 -1.58 0 -1.58 /odom /camera_link 100"/>
-  
-  <!-- TurtleBot stuff -->
+
+
   <env name="GAZEBO_MODEL_PATH" value="$(find RBE3002_template)/models:$(optenv GAZEBO_MODEL_PATH"/>
   <include file="$(find rbe3002-turtlebot)/launch/turtlebot3002_world.launch">
     <arg name="world_name" value="$(find RBE3002_template)/worlds/$(arg maze).world"/>
@@ -23,14 +21,16 @@
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find final_rbe3002)/rviz/final_rbe.rviz"/>
 
   <!--gmapping. We don't need mapserver if gmapping is running -->
-  <include file="$(find turtlebot3_slam)/launch/turtlebot3_slam.launch" output="node">
+  <include file="$(find turtlebot3_slam)/launch/turtlebot3_slam.launch">
     <arg name="open_rviz" value="false"/>
   </include>
 
-  <!-- Robot control node -->
-  <node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4"/>
+  <!-- AMCL -->
+  <include file="$(find turtlebot3_navigation)/launch/amcl.launch"/>
 
-  <!-- Path Planner node -->
-  <node name="path_planner" pkg="final_rbe3002" type="path_planner.py" output="screen"/>
+  <!-- Robot control nodes -->
+  <node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4"/>
+  <!-- <node name="path_planner" pkg="final_rbe3002" type="path_planner.py"/> -->
+  <node name="path_controller" pkg="final_rbe3002" type="path_controller.py"/>
 
 </launch>

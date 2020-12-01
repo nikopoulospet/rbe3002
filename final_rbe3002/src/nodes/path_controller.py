@@ -18,6 +18,7 @@ class PathController:
         rospy.Rate(10.0)
         ### Tell ROS that this node publishes a Path message on the "/current_path" topic
         self.PathPublisher = rospy.Publisher("/current_path", Path, queue_size=1)
+        self.MapPublisher = rospy.Publisher("/map", OccupancyGrid, queue_size=1)
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.handle_nav_goal
         self.PoseSubscriber = rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.handle_nav_goal)
@@ -54,10 +55,12 @@ class PathController:
             rospy.loginfo("service call failed: %s" %e)
             return None
 
+
     def get_path(self, msg):
         """
         """
-        phase = 1
+
+        phase = rospy.get_param('phase')
         target = None
         plan = None
         while not target or not plan:
@@ -100,6 +103,7 @@ class PathController:
         rospy.spin()
 
 if __name__ == "__main__":
+    print(rospy.get_param('phase'))
     PC = PathController()
     rospy.spin()
     

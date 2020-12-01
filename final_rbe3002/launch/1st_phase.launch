@@ -1,0 +1,7 @@
+<launch>
+
+
+  <!-- Path Controller node -->
+  <node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="screen"/>
+
+</launch>

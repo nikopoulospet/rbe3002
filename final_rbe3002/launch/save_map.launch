@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="map_server" type="map_saver" name="map_saver" args="-f $(find final_rbe3002)/maps/saved_map"/>
+</launch>

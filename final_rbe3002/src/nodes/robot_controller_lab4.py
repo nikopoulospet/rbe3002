@@ -4,7 +4,7 @@ import rospy
 import math
 from nav_msgs.msg import Odometry, Path
 from nav_msgs.srv import GetPlan
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped
 from geometry_msgs.msg import Twist
 from tf.transformations import euler_from_quaternion
 
@@ -26,6 +26,7 @@ class Robot_controller:
         self.OdometrySubscriber = rospy.Subscriber("/odom", Odometry, self.update_odometry) 
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.go_to
+        self.OdometrySubscriber2 = rospy.Subscriber("/amcl_pos", PoseWithCovarianceStamped, self.update_odometry2)
         self.PathSubscriber = rospy.Subscriber("/current_path", Path, self.handle_path)
         ### ROBOT PARAMETERS
         self.px = 0 # pose x
@@ -153,6 +154,24 @@ class Robot_controller:
         rospy.loginfo("Done With go_to")
 
     def update_odometry(self, msg):
+        """
+        Updates the current pose of the robot.
+        This method is a callback bound to a Subscriber.
+        :param msg [Odometry] The current odometry information.
+        """
+        phase = rospy.get_param('phase')
+        if(phase == 1):
+            # read the pos from the message
+            self.px = msg.pose.pose.position.x
+            self.py = msg.pose.pose.position.y
+            # convert the quarerniaon to a euler angle
+            quat_orig = msg.pose.pose.orientation # (x,y,z,w)
+            quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
+            (roll, pitch, yaw) = euler_from_quaternion(quat_list)
+            # update the save yaw
+            self.yaw = yaw
+
+    def update_odometry2(self, msg):
         """
         Updates the current pose of the robot.
         This method is a callback bound to a Subscriber.
