@@ -481,6 +481,7 @@ class PathPlanner:
         subtracted = np.subtract(img_dilation,walls) 
         img_erosion = cv2.erode(subtracted, kernel, iterations=1)
         img_erosion = cv2.dilate(img_erosion, kernel, iterations=5)
+        im_test = cv2.erode(img_erosion,kernel, iterations=4)
         
 
         params = cv2.SimpleBlobDetector_Params()
@@ -493,7 +494,7 @@ class PathPlanner:
 
         detector = cv2.SimpleBlobDetector_create(params)
         detector.empty()
-        keypoints = detector.detect(img_erosion)
+        keypoints = detector.detect(im_test)
         
         if debug:
             print(keypoints)
@@ -501,21 +502,25 @@ class PathPlanner:
                 print(key.size)
             im_with_keypoints = cv2.drawKeypoints(img_erosion, keypoints, np.array([]), (0,255,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             cv2.imshow("evidnce_grid",im_with_keypoints)
-            cv2.imshow("walls",walls)
-            cv2.imshow("eg",image)
+            cv2.imshow("walls",im_test)
+            cv2.imshow("eg",img_erosion)
             cv2.waitKey(0)
         
         return keypoints
         
-    def pickFrontier(self, keypoints): #update to take into account the distance away we are from each point
-        max_key = cv2.KeyPoint()
-        max_key.size = 0
+    def pickFrontier(self, keypoints, start): #update to take into account the distance away we are from each point
+        best = (0,0)
+        max_h = float('inf')
+        alpha = 0.9
+        beta = -0.25
+
         for key in keypoints:
-            if key.size > max_key.size:
-                max_key = key
-        
-        point = (int(max_key.pt[0]),int(max_key.pt[1]))
-        return point
+            point = (int(key.pt[0]),int(key.pt[1]))
+            h = alpha/PathPlanner.euclidean_distance(start[0],start[1],point[0],point[1]) + beta * key.size
+            if max_h > h:
+                max_h = h
+                best = point
+        return best
 
     def plan_path(self, msg):
         """
@@ -540,7 +545,7 @@ class PathPlanner:
             if phase == 1:
                 print("calc fronteir")
                 keypoints = self.findFrontier(cspacedata,False)
-                goal = self.pickFrontier(keypoints)
+                goal = self.pickFrontier(keypoints,start)
                 print(goal)
             # Execute A*
             path = self.a_star(cspacedata, start, goal)
