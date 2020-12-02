@@ -82,7 +82,7 @@ class Robot_controller:
         rospy.loginfo("Started Rotate")
         # peramiters
         #tolerance = 0.01
-        tolerance = 0.025
+        tolerance = 0.03
         sleep_time = 0.0250
         # intial robot conition
         start_angle = self.yaw
@@ -156,9 +156,9 @@ class Robot_controller:
 
         # ROTATE 2
         # calculate the angle between current yaw and the target final yaw
-        to_target_end_angle = self.yaw - target_yaw
-        self.rotate(to_target_end_angle, 0.2)
-        self.send_speed(0,0)
+        #to_target_end_angle = self.yaw - target_yaw
+        #self.rotate(to_target_end_angle, 0.2)
+        #self.send_speed(0,0)
         rospy.loginfo("Done With go_to")
 
     def update_odometry(self, msg):
