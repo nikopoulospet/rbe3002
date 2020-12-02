@@ -512,8 +512,8 @@ class PathPlanner:
     def pickFrontier(self, keypoints, start): #update to take into account the distance away we are from each point
         best = (0,0)
         max_h = float('inf')
-        alpha = 0.9
-        beta = -0.25
+        alpha = 0.3
+        beta = 0.7
 
         for key in keypoints:
             point = (int(key.pt[0]),int(key.pt[1]))
