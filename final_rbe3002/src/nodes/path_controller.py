@@ -68,9 +68,7 @@ class PathController:
                 target = PoseStamped()
 
             elif phase == 2:
-                target = PoseStamped()
-                target.pose.position.x = 0
-                target.pose.position.y = 0
+                target = msg.goal
 
             elif phase == 3:
                 target = self.wait2DNavGoal()
@@ -100,12 +98,14 @@ class PathController:
         return self.nav_target
 
     def run(self):
+        if (rospy.get_param('phase') == 2):
+            pass
         rospy.spin()
 
 if __name__ == "__main__":
     print(rospy.get_param('phase'))
     PC = PathController()
-    rospy.spin()
+    PC.run()
     
 
         

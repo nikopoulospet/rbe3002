@@ -1,6 +1,5 @@
 <launch>
   <!-- Path Controller node -->
   <param name="phase" value = "3" />
-  <node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="screen"/>
 
 </launch>

@@ -225,14 +225,24 @@ class PathPlanner:
                                 None in case of error.
         """
         rospy.loginfo("Requesting the map")
-        rospy.wait_for_service('dynamic_map')
-        try:
-            map_service = rospy.ServiceProxy('dynamic_map', GetMap)
-            responce = map_service()
-            return responce.map
-        except rospy.ServiceException as e:
-            rospy.loginfo("service call failed: %s" %e)
-            return None
+        if(1 == rospy.get_param('phase')):
+            rospy.wait_for_service('dynamic_map')
+            try:
+                map_service = rospy.ServiceProxy('dynamic_map', GetMap)
+                responce = map_service()
+                return responce.map
+            except rospy.ServiceException as e:
+                rospy.loginfo("service call failed: %s" %e)
+                return None
+        else:
+            rospy.wait_for_service('static_map')
+            try:
+                map_service = rospy.ServiceProxy('static_map', GetMap)
+                responce = map_service()
+                return responce.map
+            except rospy.ServiceException as e:
+                rospy.loginfo("service call failed: %s" %e)
+                return None
 
     def calc_cspace(self, mapdata, padding):
         """
