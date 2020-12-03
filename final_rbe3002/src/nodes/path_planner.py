@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import math
+import math, time
 import rospy
 import numpy as np
 import cv2
@@ -149,12 +149,11 @@ class PathPlanner:
         :param y       [int]           The Y coordinate in the grid.
         :return        [boolean]       True if the cell is walkable, False otherwise
         """
-        occupied_thresh = 65
         free_thresh = 19.6
         if x < mapdata.info.width and x >= 0 and y < mapdata.info.height and y >= 0:
             cell = PathPlanner.grid_to_index(mapdata, x, y)
             temp = mapdata.data[cell]
-            return mapdata.data[cell] < free_thresh
+            return (mapdata.data[cell] < free_thresh) 
         return False
 
     @staticmethod
@@ -269,7 +268,7 @@ class PathPlanner:
         test = 0
         for cell_num in range(len(mapdata.data)):
             # cell_num to x,y to check for is occupied
-            if not PathPlanner.is_cell_walkable(mapdata, x, y): #if a cell is not walkable perform dilation
+            if mapdata.data[cell_num] > 20: #if a cell is not walkable perform dilation
                 test += 1
                 for Y in range(-int(padding), 1 + int(padding)):
                     for X in range(-int(padding), 1 + int(padding)):
@@ -292,6 +291,7 @@ class PathPlanner:
         self.C_spacePublisher.publish(grid)
         # Return the C-space with padded map array
         mapdata.data = padded_map
+        print(padded_map)
         return mapdata
 
     def a_star(self, mapdata, start, goal):
@@ -304,16 +304,21 @@ class PathPlanner:
         cost = {}
         came_from[start] = 0
         cost[start] = 0
+        start_time = time.time()
+        time.clock()
+        timeout = 1
         #initilize check_grid with the starting node
         checked_grid = [PathPlanner.grid_to_world(mapdata, start[0], start[1])]
         
         while not Queue.empty():
             current = Queue.get()
-            
+            if time.time() - start_time > timeout:
+                rospy.loginfo("A-Star Fail-Safe triggered")
+                return []           
             if current == goal:
                 #end when we are at the goal
                 break
-            for next in PathPlanner.neighbors_of_8(mapdata, current[0], current[1]):
+            for next in PathPlanner.neighbors_of_4(mapdata, current[0], current[1]):
                 #add 1 b/c we will be moving by constant cells
                 new_cost = cost[current] + PathPlanner.euclidean_distance(current[0], current[1], next[0], next[1]) + PathPlanner.calcTurnCost(came_from[current],current,next)
                 if not next in cost or new_cost < cost[next]:
@@ -324,7 +329,7 @@ class PathPlanner:
                     checked_grid.append(PathPlanner.grid_to_world(mapdata, next[0], next[1]))
                     came_from[next] = current
         path_list = []
-        #backtrack through came_from dict until at start pos, then reverse list
+        #backtrace through came_from dict until at start pos, then reverse list
         while not came_from[current] == 0:
             path_list.append(current)
             current = came_from[current]
@@ -353,7 +358,7 @@ class PathPlanner:
             return 0
         theta1 = PathPlanner.calcAngle(pos0,pos1)
         theta2 = PathPlanner.calcAngle(pos1,pos2)    
-        return abs(abs(theta1) - abs(theta2)) * 0.05
+        return abs(abs(theta1) - abs(theta2)) * 0.025
 
     @staticmethod
     def calcAngle(start,end):
@@ -446,7 +451,6 @@ class PathPlanner:
             else:
                 # calculate the angel between the last and current point
                 angle = math.atan2(path[index+1][1] - path[index][1], path[index+1][0] - path[index][0])
-
                 # convert the angle to quaternion and set it as the angle for the current node
                 stamped_pose.pose.orientation = Quaternion(*quaternion_from_euler(0.0, 0.0, angle))
 
@@ -476,13 +480,13 @@ class PathPlanner:
 
         
         evidence_grid = cv2.Canny(image,99,100)
-
+        
         kernel = np.ones((3,3), np.uint8)
-        img_dilation = cv2.dilate(evidence_grid, kernel, iterations=1)
+        img_dilation = cv2.dilate(evidence_grid, kernel, iterations=2)
         subtracted = np.subtract(img_dilation,walls) 
-        img_erosion = cv2.erode(subtracted, kernel, iterations=1)
-        img_erosion = cv2.dilate(img_erosion, kernel, iterations=5)
-        im_test = cv2.erode(img_erosion,kernel, iterations=4)
+        fronitiers = cv2.erode(subtracted, np.ones((2,2)), iterations=2)
+        combined = cv2.dilate(fronitiers, kernel, iterations=5)
+        slimmed = cv2.erode(combined,kernel, iterations=6)
         
 
         params = cv2.SimpleBlobDetector_Params()
@@ -495,33 +499,35 @@ class PathPlanner:
 
         detector = cv2.SimpleBlobDetector_create(params)
         detector.empty()
-        keypoints = detector.detect(im_test)
+        keypoints = detector.detect(slimmed)
         
         if debug:
-            print(keypoints)
-            for key in keypoints:
-                print(key.size)
-            im_with_keypoints = cv2.drawKeypoints(img_erosion, keypoints, np.array([]), (0,255,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            #print(keypoints)
+            #for key in keypoints:
+            #    print(key.size)
+            im_with_keypoints = cv2.drawKeypoints(evidence_grid, keypoints, np.array([]), (0,255,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
             cv2.imshow("evidnce_grid",im_with_keypoints)
-            cv2.imshow("walls",im_test)
-            cv2.imshow("eg",img_erosion)
-            cv2.waitKey(0)
+            cv2.imshow("walls",slimmed)
+            cv2.imshow("eg",fronitiers)
+            cv2.waitKey(5000)
         
         return keypoints
         
-    def pickFrontier(self, keypoints, start): #update to take into account the distance away we are from each point
+    def pickFrontier(self, mapdata, keypoints, start): #update to take into account the distance away we are from each point
         best = (0,0)
-        max_h = float('inf')
-        alpha = 0.3
-        beta = 0.7
+        max_h = 0 #float('inf')
+        alpha = 0.0
+        beta = 1
+        bestPath = []
 
         for key in keypoints:
             point = (int(key.pt[0]),int(key.pt[1]))
-            h = alpha/PathPlanner.euclidean_distance(start[0],start[1],point[0],point[1]) + beta * key.size
-            if max_h > h:
-                max_h = h
+            path = self.a_star(mapdata,start,point)
+            if len(path) > 0 and max_h < alpha/len(path) + beta * key.size:
+                max_h = alpha/len(path) + beta * key.size
                 best = point
-        return best
+                bestPath = path
+        return best,bestPath
 
     
     def plan_path(self, msg):
@@ -542,15 +548,16 @@ class PathPlanner:
         waypoints = []
         if not PathPlanner.checkJunk(start,goal,2):
             # Calculate the C-space and publish it
-            cspacedata = self.calc_cspace(mapdata, 3)
+            cspacedata = self.calc_cspace(mapdata, 1)
             # calc frontier
             if phase == 1:
                 print("calc fronteir")
                 keypoints = self.findFrontier(cspacedata,False)
-                goal = self.pickFrontier(keypoints,start)
+                goal,path = self.pickFrontier(cspacedata, keypoints,start)
                 print(goal)
-            # Execute A*
-            path = self.a_star(cspacedata, start, goal)
+            else:
+                # Execute A*
+                path = self.a_star(cspacedata, start, goal)
             # Optimize waypoints
             waypoints = PathPlanner.optimize_path(path)
             
