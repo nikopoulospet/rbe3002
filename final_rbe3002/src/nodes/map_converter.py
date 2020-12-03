@@ -8,6 +8,7 @@ class map_converter:
     def __init__(self):
         rospy.init_node("map_converter")
         rospy.Rate(10)
+        # self.Map_subscriber = rospy.Subscriber("/map")
         self.map_service = rospy.Service("static_map", GetMap, self.serve_map)
 
     def serve_map(self, foo):

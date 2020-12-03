@@ -81,7 +81,7 @@ class Robot_controller:
         rospy.loginfo("Started Rotate")
         # peramiters
         #tolerance = 0.01
-        tolerance = 0.03
+        tolerance = 0.04
         sleep_time = 0.0250
         # intial robot conition
         start_angle = self.yaw
@@ -186,7 +186,7 @@ class Robot_controller:
         """
         rospy.loginfo("Driving to Point")
         # drive to point drive peramiters
-        tolerance = 0.025
+        tolerance = 0.04
         sleep_time = 0.06
         
 
@@ -268,10 +268,11 @@ class Robot_controller:
                 break
         self.done_nav_flag = True
         rospy.loginfo("Done with Path")
+        self.localized = False
     
     def handle_pose_prob(self, msg):
 
-        tolerance = .3
+        tolerance = .25
 
         sum_x = 0
         sum_y = 0
@@ -303,7 +304,7 @@ class Robot_controller:
                 self.localized = True
 
             else:
-                print(str(distance) + "=================================================")
+                print(str(distance))
                 self.localize()
         else:
             pass
@@ -313,37 +314,36 @@ class Robot_controller:
 
     def run(self):
         rospy.wait_for_service('next_path',timeout=None)
-        rospy.wait_for_message('/odom', Odometry)
-
         # save the inital positon
         
         self.inital_pos.pose.position.x = self.px
         self.inital_pos.pose.position.y = self.py
 
+        #start localization
+        localization = rospy.ServiceProxy('global_localization', Empty)
+        null = localization()
+
         while(1):
             if(self.done_nav_flag):
-                try:
-                    #path service call
-                    plan = rospy.ServiceProxy('next_path', GetPlan)
-                    goal = PoseStamped()
+                if(self.localized):
+                    try:
+                        #path service call
+                        plan = rospy.ServiceProxy('next_path', GetPlan)
+                        goal = PoseStamped()
 
-                    #start localization
-                    localization = rospy.ServiceProxy('global_localization', Empty)
-                    null = localization()
+                        #path params
+                        cur_pose = PoseStamped()
+                        cur_pose.pose.position.x = self.px
+                        cur_pose.pose.position.y = self.py
 
-                    #path params
-                    cur_pose = PoseStamped()
-                    cur_pose.pose.position.x = self.px
-                    cur_pose.pose.position.y = self.py
-
-                    #get a path and response
-                    response = plan(cur_pose, goal, 0.15)
-                    self.done_nav_flag = False
-                    print(response)
-                    self.handle_path(response)
-                except rospy.ServiceException as e:
-                    rospy.loginfo("Service failed: %s"%e)
-            rospy.sleep(1)
+                        #get a path and response
+                        response = plan(cur_pose, goal, 0.15)
+                        self.done_nav_flag = False
+                        print(response)
+                        self.handle_path(response)
+                    except rospy.ServiceException as e:
+                        rospy.loginfo("Service failed: %s"%e)
+            time.sleep(1)
 
 if __name__ == '__main__':
     robot = Robot_controller()

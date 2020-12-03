@@ -40,25 +40,25 @@
 		  </include>
 
   <!-- AMCL -->
+	<param name="~tf_broadcast"  value="true" />
+	<param name="~use_map_topic"  value="true" />
 	  <include file="$(find turtlebot3_navigation)/launch/amcl.launch">
-		<param name="use_map_topic"  value="true"/>
-		<param name="x_pos" value="0.40"/>
-		<param name="y_pos" value="0.4"/>
-		<param name="z_pos" value="0.05"/>
+		<param name="~tf_broadcast"  value="false" />
+		<param name="~use_map_topic"  value="true" />
 	  </include>
   
   <!-- Robot control node -->
   	<node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4" output="screen"/>
 
   <!-- Path Controller node -->
-  	<node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="screen"/>
+  	<node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="log"/>
 
 
   <!-- Path Planner node -->
   	<node name="path_planner" pkg="final_rbe3002" type="path_planner.py" output="log"/>
 
   <!-- Map converter node -->
-	<node name="map_converter" pkg="final_rbe3002" type="map_converter.py" output="screen"/>
+	<!--<node name="map_converter" pkg="final_rbe3002" type="map_converter.py" output="log"/>-->
 
 
 </launch>
