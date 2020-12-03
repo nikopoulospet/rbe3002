@@ -60,7 +60,7 @@ class PathController:
         """
         """
 
-        phase = rospy.get_param('phase')
+        phase = 1
         target = None
         plan = None
         while not target or not plan:
@@ -78,7 +78,7 @@ class PathController:
         return GetPlanResponse(plan.plan)
 
     def navToPoint(self,cur_pose, goal, phase):
-        rospy.loginfo("Navigating to next point")
+        rospy.loginfo("Navigating to next point | In Phase #" + str(phase))
         rospy.wait_for_service("plan_path")
         if not goal:
             return None
@@ -98,12 +98,9 @@ class PathController:
         return self.nav_target
 
     def run(self):
-        if (rospy.get_param('phase') == 2):
-            pass
         rospy.spin()
 
 if __name__ == "__main__":
-    print(rospy.get_param('phase'))
     PC = PathController()
     PC.run()
     

@@ -25,7 +25,7 @@
 	  </include>
 
   <!-- RVIZ LAUNCH -->
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find final_rbe3002)/rviz/final_rbe.rviz"/>
+  	<node name="rviz" pkg="rviz" type="rviz" args="-d $(find final_rbe3002)/rviz/final_rbe.rviz"/>
 
   <!-- Gmapping -->
 	  <!-- TurtleBot3 -->
@@ -33,13 +33,32 @@
 		    <arg name="model" value="$(arg model)" />
 		  </include>
 
+	 <!-- SLAM: Gmapping, Cartographer, Hector, Karto, Frontier_exploration, RTAB-Map -->
+		  <include file="$(find turtlebot3_slam)/launch/turtlebot3_$(arg slam_methods).launch">
+		    <arg name="model" value="$(arg model)"/>
+		    <arg name="configuration_basename" value="$(arg configuration_basename)"/>
+		  </include>
 
+  <!-- AMCL -->
+	  <include file="$(find turtlebot3_navigation)/launch/amcl.launch">
+		<param name="use_map_topic"  value="true"/>
+		<param name="x_pos" value="0.40"/>
+		<param name="y_pos" value="0.4"/>
+		<param name="z_pos" value="0.05"/>
+	  </include>
+  
+  <!-- Robot control node -->
+  	<node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4" output="screen"/>
 
+  <!-- Path Controller node -->
+  	<node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="screen"/>
 
 
   <!-- Path Planner node -->
   	<node name="path_planner" pkg="final_rbe3002" type="path_planner.py" output="log"/>
 
+  <!-- Map converter node -->
+	<node name="map_converter" pkg="final_rbe3002" type="map_converter.py" output="screen"/>
 
 
 </launch>
