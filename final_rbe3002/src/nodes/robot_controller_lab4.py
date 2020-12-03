@@ -17,8 +17,7 @@ class Robot_controller:
         """
         Class constructor
         """
-        rospy.loginfo("Starting Robot Controller in phase #" + str(rospy.get_param('phase')))
-        print("Starting Robot Controller in phase #" + str(rospy.get_param('phase')))
+
         ### REQUIRED CREDIT
         ### Initialize node, name it 'Robot_controller'
         rospy.init_node('Robot_controller', anonymous=True)
@@ -27,14 +26,11 @@ class Robot_controller:
         self.TwistPublisher = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         ### Tell ROS that this node subscribes to Odometry messages on the '/odom' topic
         ### When a message is received, call self.update_odometry
-        if (rospy.get_param('phase') == 1):
-            self.OdometrySubscriber = rospy.Subscriber("/odom", Odometry, self.update_odometry)
-        else:
-            self.OdometrySubscriber = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.update_odometry)
+        self.OdometrySubscriber = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.update_odometry)
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.go_to
-        self.PoseCloudSubscriber = rospy.Subscriber("/particlecloud", PoseArray, self.handle_pose_prob)
         self.PathSubscriber = rospy.Subscriber("/current_path", Path, self.handle_path)
+        self.PoseCloudSubscriber = rospy.Subscriber("/particlecloud", PoseArray, self.handle_pose_prob)
 
         ### ROBOT PARAMETERS
         self.px = 0 # pose x
@@ -284,7 +280,7 @@ class Robot_controller:
         sum_dy = 0
 
         #cal the avg error in the array
-        if(self.localized == False):
+        if(not self.localized):
             #find the average pos
             for i in msg.poses:
                 sum_x += i.position.x
@@ -303,9 +299,11 @@ class Robot_controller:
             distance = math.sqrt(avg_dx ** 2 + avg_dy ** 2)
 
             if distance < tolerance:
+                self.send_speed(0,0)
                 self.localized = True
+
             else:
-                print(distance)
+                print(str(distance) + "=================================================")
                 self.localize()
         else:
             pass
@@ -321,25 +319,28 @@ class Robot_controller:
         
         self.inital_pos.pose.position.x = self.px
         self.inital_pos.pose.position.y = self.py
-        if(rospy.get_param('phase') != 3):
-            self.localized = True
 
         while(1):
             if(self.done_nav_flag):
                 try:
+                    #path service call
                     plan = rospy.ServiceProxy('next_path', GetPlan)
                     goal = PoseStamped()
-                    if(rospy.get_param('phase') == 2):
-                        localization = rospy.ServiceProxy('global_localization', Empty)
-                        null = localization()
+
+                    #start localization
+                    localization = rospy.ServiceProxy('global_localization', Empty)
+                    null = localization()
+
+                    #path params
                     cur_pose = PoseStamped()
                     cur_pose.pose.position.x = self.px
                     cur_pose.pose.position.y = self.py
-                    if(self.localized == True):
-                        response = plan(cur_pose, goal, 0.15)
-                        self.done_nav_flag = False
-                        print(response)
-                        self.handle_path(response)
+
+                    #get a path and response
+                    response = plan(cur_pose, goal, 0.15)
+                    self.done_nav_flag = False
+                    print(response)
+                    self.handle_path(response)
                 except rospy.ServiceException as e:
                     rospy.loginfo("Service failed: %s"%e)
             rospy.sleep(1)
