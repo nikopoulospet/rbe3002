@@ -153,11 +153,11 @@ class Robot_controller:
         # calculate the angle between current yaw and the target position
         to_target_angle = self.yaw - math.atan2(target_y-self.py,target_x-self.px)
         #Rotate the robot
-        self.rotate(to_target_angle, 0.2)
+        self.rotate(to_target_angle, 0.10)
 
         # DRIVE
         point = msg.pose.position
-        self.drive_to_point(point, 0.15)
+        self.drive_to_point(point, 0.10)
 
         # ROTATE 2
         # calculate the angle between current yaw and the target final yaw
