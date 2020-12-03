@@ -2,9 +2,11 @@
 
 import rospy
 import math
+import time
 from nav_msgs.msg import Odometry, Path
 from nav_msgs.srv import GetPlan
-from geometry_msgs.msg import PoseStamped
+from std_srvs.srv import Empty
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, PoseArray
 from geometry_msgs.msg import Twist
 from tf.transformations import euler_from_quaternion
 
@@ -15,6 +17,8 @@ class Robot_controller:
         """
         Class constructor
         """
+        rospy.loginfo("Starting Robot Controller in phase #" + str(rospy.get_param('phase')))
+        print("Starting Robot Controller in phase #" + str(rospy.get_param('phase')))
         ### REQUIRED CREDIT
         ### Initialize node, name it 'Robot_controller'
         rospy.init_node('Robot_controller', anonymous=True)
@@ -23,10 +27,15 @@ class Robot_controller:
         self.TwistPublisher = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
         ### Tell ROS that this node subscribes to Odometry messages on the '/odom' topic
         ### When a message is received, call self.update_odometry
-        self.OdometrySubscriber = rospy.Subscriber("/odom", Odometry, self.update_odometry) 
+        if (rospy.get_param('phase') == 1):
+            self.OdometrySubscriber = rospy.Subscriber("/odom", Odometry, self.update_odometry)
+        else:
+            self.OdometrySubscriber = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.update_odometry)
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.go_to
+        self.PoseCloudSubscriber = rospy.Subscriber("/particlecloud", PoseArray, self.handle_pose_prob)
         self.PathSubscriber = rospy.Subscriber("/current_path", Path, self.handle_path)
+
         ### ROBOT PARAMETERS
         self.px = 0 # pose x
         self.py = 0 # pose y
@@ -35,6 +44,9 @@ class Robot_controller:
         self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
         self.cur_path_id = 0
         self.done_nav_flag = True
+        self.inital_pos = PoseStamped()
+        self.localized = False
+
         rospy.loginfo("Robot Controller Node Initalized")
 
 
@@ -73,7 +85,7 @@ class Robot_controller:
         rospy.loginfo("Started Rotate")
         # peramiters
         #tolerance = 0.01
-        tolerance = 0.025
+        tolerance = 0.03
         sleep_time = 0.0250
         # intial robot conition
         start_angle = self.yaw
@@ -88,7 +100,9 @@ class Robot_controller:
         angular_effort = 0
         angular_effort_old = 0
         last_time = 0
-        start_time = rospy.get_rostime().nsecs/1000000
+        start_time = time.time()
+        time.clock()
+
         angular_error_queue = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
         while((abs(target_angle - (current_angle))) > tolerance):
@@ -112,9 +126,9 @@ class Robot_controller:
 
             self.send_speed(0, -angular_effort)
             last_time = current_time
-            rospy.sleep(sleep_time)
+            time.sleep(sleep_time)
             # failsafe
-            if (current_time - start_time > 5000):
+            if (time.time() - start_time > 5):
                 rospy.loginfo("Rotating Fail-Safe triggered")
                 break
         # stop the robot from spinning
@@ -147,9 +161,9 @@ class Robot_controller:
 
         # ROTATE 2
         # calculate the angle between current yaw and the target final yaw
-        to_target_end_angle = self.yaw - target_yaw
-        self.rotate(to_target_end_angle, 0.2)
-        self.send_speed(0,0)
+        #to_target_end_angle = self.yaw - target_yaw
+        #self.rotate(to_target_end_angle, 0.2)
+        #self.send_speed(0,0)
         rospy.loginfo("Done With go_to")
 
     def update_odometry(self, msg):
@@ -259,23 +273,73 @@ class Robot_controller:
         self.done_nav_flag = True
         rospy.loginfo("Done with Path")
     
+    def handle_pose_prob(self, msg):
+
+        tolerance = .3
+
+        sum_x = 0
+        sum_y = 0
+
+        sum_dx = 0
+        sum_dy = 0
+
+        #cal the avg error in the array
+        if(self.localized == False):
+            #find the average pos
+            for i in msg.poses:
+                sum_x += i.position.x
+                sum_y += i.position.y
+
+            avg_x = sum_x/len(msg.poses)
+            avg_y = sum_y/len(msg.poses)
+
+            for i in msg.poses:
+                sum_dx += abs(i.position.x - avg_x)
+                sum_dy += abs(i.position.y - avg_y)
+
+            avg_dx = sum_dx/len(msg.poses)
+            avg_dy = sum_dy/len(msg.poses)
+
+            distance = math.sqrt(avg_dx ** 2 + avg_dy ** 2)
+
+            if distance < tolerance:
+                self.localized = True
+            else:
+                print(distance)
+                self.localize()
+        else:
+            pass
+
+    def localize(self):
+        self.send_speed(0,0.3)
 
     def run(self):
         rospy.wait_for_service('next_path',timeout=None)
         rospy.wait_for_message('/odom', Odometry)
+
+        # save the inital positon
+        
+        self.inital_pos.pose.position.x = self.px
+        self.inital_pos.pose.position.y = self.py
+        if(rospy.get_param('phase') != 3):
+            self.localized = True
+
         while(1):
             if(self.done_nav_flag):
                 try:
                     plan = rospy.ServiceProxy('next_path', GetPlan)
                     goal = PoseStamped()
+                    if(rospy.get_param('phase') == 2):
+                        localization = rospy.ServiceProxy('global_localization', Empty)
+                        null = localization()
                     cur_pose = PoseStamped()
                     cur_pose.pose.position.x = self.px
                     cur_pose.pose.position.y = self.py
-
-                    response = plan(cur_pose, goal, 0.15)
-                    self.done_nav_flag = False
-                    print(response)
-                    self.handle_path(response)
+                    if(self.localized == True):
+                        response = plan(cur_pose, goal, 0.15)
+                        self.done_nav_flag = False
+                        print(response)
+                        self.handle_path(response)
                 except rospy.ServiceException as e:
                     rospy.loginfo("Service failed: %s"%e)
             rospy.sleep(1)

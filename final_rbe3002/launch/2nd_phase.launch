@@ -1,0 +1,23 @@
+<launch>
+  <node pkg="map_server" type="map_saver" name="map_saver" args="-f $(find final_rbe3002)/maps/saved_map"/>
+
+  <param name="phase" value = "3" />
+
+  <!-- map server -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(find final_rbe3002)/maps/saved_map.yaml" />
+
+  <!-- AMCL -->
+  <include file="$(find turtlebot3_navigation)/launch/amcl.launch">
+	<param name="use_map_topic"  value="true"/>
+	<param name="x_pos" value="0.40"/>
+	<param name="y_pos" value="0.4"/>
+	<param name="z_pos" value="0.05"/>
+  </include>
+
+  <!-- Path Controller node -->
+  	<node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="screen"/>
+
+  <!-- Robot control node -->
+  	<node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4" output="screen"/>
+
+</launch>
