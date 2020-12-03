@@ -10,7 +10,6 @@ from nav_msgs.msg import GridCells, OccupancyGrid, Path
 from geometry_msgs.msg import Point, Pose, PoseStamped, Quaternion
 from tf.transformations import quaternion_from_euler
 
-
 class PathPlanner:
 
     def __init__(self):
@@ -225,14 +224,24 @@ class PathPlanner:
                                 None in case of error.
         """
         rospy.loginfo("Requesting the map")
-        rospy.wait_for_service('dynamic_map')
-        try:
-            map_service = rospy.ServiceProxy('dynamic_map', GetMap)
-            responce = map_service()
-            return responce.map
-        except rospy.ServiceException as e:
-            rospy.loginfo("service call failed: %s" %e)
-            return None
+        if(1 == rospy.get_param('phase')):
+            rospy.wait_for_service('dynamic_map')
+            try:
+                map_service = rospy.ServiceProxy('dynamic_map', GetMap)
+                responce = map_service()
+                return responce.map
+            except rospy.ServiceException as e:
+                rospy.loginfo("service call failed: %s" %e)
+                return None
+        else:
+            rospy.wait_for_service('static_map')
+            try:
+                map_service = rospy.ServiceProxy('static_map', GetMap)
+                responce = map_service()
+                return responce.map
+            except rospy.ServiceException as e:
+                rospy.loginfo("service call failed: %s" %e)
+                return None
 
     def calc_cspace(self, mapdata, padding):
         """
@@ -529,7 +538,6 @@ class PathPlanner:
                 bestPath = path
         return best,bestPath
 
-    
     def plan_path(self, msg):
         """
         Plans a path between the start and goal locations in the requested.

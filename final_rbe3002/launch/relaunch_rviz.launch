@@ -1,0 +1,5 @@
+<launch>
+  <!-- RVIZ LAUNCH -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find final_rbe3002)/rviz/final_rbe.rviz"/>
+
+</launch>
