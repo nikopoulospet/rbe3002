@@ -3,6 +3,7 @@
 import rospy
 import math
 import time
+from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry, Path
 from nav_msgs.srv import GetPlan
 from std_srvs.srv import Empty
@@ -29,7 +30,7 @@ class Robot_controller:
         self.OdometrySubscriber = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.update_odometry)
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.go_to
-        self.PathSubscriber = rospy.Subscriber("/current_path", Path, self.handle_path)
+        self.PathSubscriber = rospy.Subscriber("/new_path", Bool, self.update_path)
         self.PoseCloudSubscriber = rospy.Subscriber("/particlecloud", PoseArray, self.handle_pose_prob)
 
         ### ROBOT PARAMETERS
@@ -39,6 +40,7 @@ class Robot_controller:
         self.maxWheelSpeed = 0.22 #physcial limit by turtlebot 3
         self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
         self.cur_path_id = 0
+        self.new_path = False
         self.done_nav_flag = True
         self.inital_pos = PoseStamped()
         self.localized = False
@@ -256,20 +258,20 @@ class Robot_controller:
         rospy.loginfo("Done Driving to Point")
 
     def handle_path(self, msg):
-        # making it so if a new path comes in this one is canncelled
-        self.cur_path_id += 1
-        my_id = self.cur_path_id
-
         # get the path from the msg
         path = msg.plan.poses
 
         for point in path:
             self.go_to(point)
-            if(my_id != self.cur_path_id):
+            if(self.new_path):
+                #given new path, return to make a new service call to PP
                 rospy.loginfo("Path Interupted")
                 break
         self.done_nav_flag = True
         rospy.loginfo("Done with Path")
+    
+    def update_path(self, msg):
+        self.new_path = msg.data
     
     def handle_pose_prob(self, msg):
 
@@ -339,8 +341,8 @@ class Robot_controller:
 
                         #get a path and response
                         response = plan(cur_pose, goal, 0.15)
+                        self.new_path = False
                         self.done_nav_flag = False
-                        print(response)
                         self.handle_path(response)
                     except rospy.ServiceException as e:
                         rospy.loginfo("Service failed: %s"%e)
