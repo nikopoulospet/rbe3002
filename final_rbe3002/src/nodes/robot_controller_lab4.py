@@ -171,6 +171,8 @@ class Robot_controller:
         # read the pos from the message
         self.px = msg.pose.pose.position.x
         self.py = msg.pose.pose.position.y
+
+        print(msg.pose.covariance)
         # convert the quarerniaon to a euler angle
         quat_orig = msg.pose.pose.orientation # (x,y,z,w)
         quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
@@ -191,7 +193,7 @@ class Robot_controller:
         
 
         # PID variables
-        Kp = 5
+        Kp = 4
         Ki = 0.03
         Kd = 0.0001
 
@@ -268,7 +270,6 @@ class Robot_controller:
                 break
         self.done_nav_flag = True
         rospy.loginfo("Done with Path")
-        self.localized = False
     
     def handle_pose_prob(self, msg):
 
