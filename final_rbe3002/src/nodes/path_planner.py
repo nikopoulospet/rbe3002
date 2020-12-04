@@ -317,7 +317,7 @@ class PathPlanner:
             if current == goal:
                 #end when we are at the goal
                 break
-            for next in PathPlanner.neighbors_of_4(mapdata, current[0], current[1]):
+            for next in PathPlanner.neighbors_of_8(mapdata, current[0], current[1]):
                 #add 1 b/c we will be moving by constant cells
                 new_cost = cost[current] + PathPlanner.euclidean_distance(current[0], current[1], next[0], next[1]) + PathPlanner.calcTurnCost(came_from[current],current,next)
                 if not next in cost or new_cost < cost[next]:

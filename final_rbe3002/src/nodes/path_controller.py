@@ -78,7 +78,7 @@ class PathController:
         return GetPlanResponse(plan.plan)
 
     def navToPoint(self,cur_pose, goal, phase):
-        rospy.loginfo("Navigating to next point | In Phase #" + str(phase))
+        rospy.loginfo("Navigating to next point | In Phase #" + str(phase) + str(goal))
         rospy.wait_for_service("plan_path")
         if not goal:
             return None

@@ -3,6 +3,7 @@
 import rospy
 import math
 import time
+from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry, Path
 from nav_msgs.srv import GetPlan
 from std_srvs.srv import Empty
@@ -29,7 +30,7 @@ class Robot_controller:
         self.OdometrySubscriber = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.update_odometry)
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.go_to
-        self.PathSubscriber = rospy.Subscriber("/current_path", Path, self.handle_path)
+        self.PathSubscriber = rospy.Subscriber("/new_path", Bool, self.update_path)
         self.PoseCloudSubscriber = rospy.Subscriber("/particlecloud", PoseArray, self.handle_pose_prob)
 
         ### ROBOT PARAMETERS
@@ -39,6 +40,7 @@ class Robot_controller:
         self.maxWheelSpeed = 0.22 #physcial limit by turtlebot 3
         self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
         self.cur_path_id = 0
+        self.new_path = False
         self.done_nav_flag = True
         self.inital_pos = PoseStamped()
         self.localized = False
@@ -81,7 +83,7 @@ class Robot_controller:
         rospy.loginfo("Started Rotate")
         # peramiters
         #tolerance = 0.01
-        tolerance = 0.03
+        tolerance = 0.04
         sleep_time = 0.0250
         # intial robot conition
         start_angle = self.yaw
@@ -171,6 +173,8 @@ class Robot_controller:
         # read the pos from the message
         self.px = msg.pose.pose.position.x
         self.py = msg.pose.pose.position.y
+
+        print(msg.pose.covariance)
         # convert the quarerniaon to a euler angle
         quat_orig = msg.pose.pose.orientation # (x,y,z,w)
         quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
@@ -186,12 +190,12 @@ class Robot_controller:
         """
         rospy.loginfo("Driving to Point")
         # drive to point drive peramiters
-        tolerance = 0.025
+        tolerance = 0.04
         sleep_time = 0.06
         
 
         # PID variables
-        Kp = 5
+        Kp = 4
         Ki = 0.03
         Kd = 0.0001
 
@@ -254,24 +258,24 @@ class Robot_controller:
         rospy.loginfo("Done Driving to Point")
 
     def handle_path(self, msg):
-        # making it so if a new path comes in this one is canncelled
-        self.cur_path_id += 1
-        my_id = self.cur_path_id
-
         # get the path from the msg
         path = msg.plan.poses
 
         for point in path:
             self.go_to(point)
-            if(my_id != self.cur_path_id):
+            if(self.new_path):
+                #given new path, return to make a new service call to PP
                 rospy.loginfo("Path Interupted")
                 break
         self.done_nav_flag = True
         rospy.loginfo("Done with Path")
     
+    def update_path(self, msg):
+        self.new_path = msg.data
+    
     def handle_pose_prob(self, msg):
 
-        tolerance = .3
+        tolerance = .25
 
         sum_x = 0
         sum_y = 0
@@ -303,7 +307,7 @@ class Robot_controller:
                 self.localized = True
 
             else:
-                print(str(distance) + "=================================================")
+                print(str(distance))
                 self.localize()
         else:
             pass
@@ -313,37 +317,36 @@ class Robot_controller:
 
     def run(self):
         rospy.wait_for_service('next_path',timeout=None)
-        rospy.wait_for_message('/odom', Odometry)
-
         # save the inital positon
         
         self.inital_pos.pose.position.x = self.px
         self.inital_pos.pose.position.y = self.py
 
+        #start localization
+        localization = rospy.ServiceProxy('global_localization', Empty)
+        null = localization()
+
         while(1):
             if(self.done_nav_flag):
-                try:
-                    #path service call
-                    plan = rospy.ServiceProxy('next_path', GetPlan)
-                    goal = PoseStamped()
+                if(self.localized):
+                    try:
+                        #path service call
+                        plan = rospy.ServiceProxy('next_path', GetPlan)
+                        goal = PoseStamped()
 
-                    #start localization
-                    localization = rospy.ServiceProxy('global_localization', Empty)
-                    null = localization()
+                        #path params
+                        cur_pose = PoseStamped()
+                        cur_pose.pose.position.x = self.px
+                        cur_pose.pose.position.y = self.py
 
-                    #path params
-                    cur_pose = PoseStamped()
-                    cur_pose.pose.position.x = self.px
-                    cur_pose.pose.position.y = self.py
-
-                    #get a path and response
-                    response = plan(cur_pose, goal, 0.15)
-                    self.done_nav_flag = False
-                    print(response)
-                    self.handle_path(response)
-                except rospy.ServiceException as e:
-                    rospy.loginfo("Service failed: %s"%e)
-            rospy.sleep(1)
+                        #get a path and response
+                        response = plan(cur_pose, goal, 0.15)
+                        self.new_path = False
+                        self.done_nav_flag = False
+                        self.handle_path(response)
+                    except rospy.ServiceException as e:
+                        rospy.loginfo("Service failed: %s"%e)
+            time.sleep(1)
 
 if __name__ == '__main__':
     robot = Robot_controller()
