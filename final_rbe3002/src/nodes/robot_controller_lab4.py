@@ -97,14 +97,14 @@ class Robot_controller:
 
         angular_effort = 0
         angular_effort_old = 0
-        last_time = 0
+        last_time = time.time()
         start_time = time.time()
         time.clock()
 
         angular_error_queue = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
         while((abs(target_angle - (current_angle))) > tolerance):
-            current_time = rospy.get_rostime().nsecs/1000000
+            time.sleep(sleep_time)
             ## Angular PID
             # P control on the the robots yaw
             current_angle = self.yaw + 4*math.pi
@@ -115,7 +115,7 @@ class Robot_controller:
             angular_error_queue.append(angular_error_p)
             angular_error_i = sum(angular_error_queue)
             # D control on the robots yaw
-            angular_error_d = (angular_effort - angular_effort_old) / (current_time - last_time)
+            angular_error_d = (angular_effort - angular_effort_old) / (time.time() - last_time)
             # angular effort
             angular_effort_old = angular_effort
             angular_effort = (angular_error_p * Rp) + (angular_error_i * Ri) + (angular_error_d * Rd)
@@ -123,8 +123,7 @@ class Robot_controller:
             #print(round(angular_effort, 3),round(angular_error_p * Rp, 3),round(angular_error_i * Ri, 3),round(angular_error_d * Rd, 3))
 
             self.send_speed(0, -angular_effort)
-            last_time = current_time
-            time.sleep(sleep_time)
+            last_time = time.time()
             # failsafe
             if (time.time() - start_time > 5):
                 rospy.loginfo("Rotating Fail-Safe triggered")
