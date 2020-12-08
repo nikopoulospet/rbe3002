@@ -1,5 +1,5 @@
 <sdf version='1.4'>
-  <world name='default'>
+  <world name='Maze3'>
     <!-- A global light source -->
     <include>
       <uri>model://sun</uri>

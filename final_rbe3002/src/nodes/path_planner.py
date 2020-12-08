@@ -4,6 +4,7 @@ import math, time
 import rospy
 import numpy as np
 import cv2
+from std_msgs.msg import Bool
 from final_rbe3002.msg import keypoint, keypoint_map
 from priority_queue import PriorityQueue
 from nav_msgs.srv import GetPlan, GetPlanResponse, GetMap
@@ -34,12 +35,15 @@ class PathPlanner:
         # Create publishers for A* (expanded cells, frontier, ...)
         # Choose a the topic names, the message type is GridCells
         self.A_starPublisher = rospy.Publisher("/path_planner/astar_path", Path, queue_size=1)
+
+        self.PathPublisher = rospy.Publisher("/new_path", Bool, queue_size=1)
         
 
         #stored map and kp data
         self.stored_mapdata = None
         self.stored_keypoints = None
         self.new_data = False
+        self.most_recent_path = []
         # Sleep to allow roscore to do some housekeeping
         rospy.sleep(1.0)
         rospy.loginfo("Path planner node ready")
@@ -483,24 +487,57 @@ class PathPlanner:
         :return: bestPath [[(int,int)]]
         """ 
         max_h = 0
-        alpha = 0.0
-        beta = 1
+        alpha = 0.95
+        beta = 0.05
         bestPath = []
         bestGrid = GridCells()
 
         for point in keypoints:
             path,grid = self.a_star(mapdata,start,(point[0],point[1]))
-            if len(path) > 0 and max_h < alpha/len(path) + beta * point[2]:
+            if not PathPlanner.checkJunk(start,point,5) and len(path) > 0 and max_h < alpha/len(path) + beta * point[2]:
                 max_h = alpha/len(path) + beta * point[2]
                 bestPath = path
                 bestGrid = grid
         self.A_star_checkedPublisher.publish(bestGrid)
         return bestPath
 
+    def check_if_in_cspace(self,cspacedata,start):
+        """
+        Checks to see if the robot is in the Cspace, then returns a path to escape
+        """
+        rospy.loginfo("chaning start pose due to cspace")
+        if not PathPlanner.is_cell_walkable(cspacedata,start[0],start[1]):
+            count = 0
+            while 1:
+                if PathPlanner.is_cell_walkable(cspacedata,start[0]+count,start[1]):
+                    return (start[0]+count,start[1])
+                if PathPlanner.is_cell_walkable(cspacedata,start[0]-count,start[1]):
+                    return (start[0]-count,start[1])
+                if PathPlanner.is_cell_walkable(cspacedata,start[0],start[1]-count):
+                    return (start[0],start[1]-count)
+                if PathPlanner.is_cell_walkable(cspacedata,start[0],start[1]+count):
+                    return (start[0],start[1]+count)
+                count += 1
+        else:
+            return start
+
+    def check_path_walkable(self,cspacedata,path):
+        """
+        checks to see if all cells in the path are still walkable
+        """
+        for cell in path:
+            if not PathPlanner.is_cell_walkable(cspacedata,cell[0],cell[1]):
+                return False
+        return True
+
     def store_data(self,msg):
         self.new_data = True
         self.stored_mapdata = msg.map
         self.stored_keypoints = self.translate_kp(msg.keypoints)
+        if not self.check_path_walkable(msg.map,self.most_recent_path):
+            msg = Bool()
+            msg.data = True
+            self.PathPublisher.publish(msg)
     
     def translate_kp(self, keypoints):
         kp = []
@@ -526,7 +563,7 @@ class PathPlanner:
             cspacedata = self.stored_mapdata
             keypoints = self.stored_keypoints
             #extract start pose from msg
-            start = PathPlanner.world_to_grid(cspacedata, msg.start.pose.position)
+            start = self.check_if_in_cspace(cspacedata,PathPlanner.world_to_grid(cspacedata, msg.start.pose.position))
             #calculate a path through heruistic
             path = self.pickFrontier(cspacedata, keypoints,start)
         else:
@@ -545,7 +582,8 @@ class PathPlanner:
 
         # Optimize waypoints
         if path == []:
-            return Plan()
+            return Path()
+        self.most_recent_path = path
         waypoints = PathPlanner.optimize_path(path)
         # Return a Path message
         return GetPlanResponse(self.path_to_message(cspacedata, waypoints))

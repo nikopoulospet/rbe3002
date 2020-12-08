@@ -22,7 +22,7 @@ class Frontier_Explorer:
         ##publisheds map and keypoints to path planner node to store
         self.Keypoint_map_publisher = rospy.Publisher("/Keypoint_map", keypoint_map, queue_size=1)
         
-        rospy.sleep(1.0)
+        rospy.sleep(3.0)
         rospy.loginfo("Frontier Explorer Node Initalized")
 
     def run(self):
@@ -33,7 +33,7 @@ class Frontier_Explorer:
         """
         while 1:
             mapdata = self.get_map()
-            Cspacedata = self.calc_cspace(mapdata, 4)
+            Cspacedata = self.calc_cspace(mapdata, 3)
             kp = self.findFrontier(Cspacedata,False)
             if len(kp) == 0:
                 break

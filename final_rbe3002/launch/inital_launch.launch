@@ -2,10 +2,10 @@
 <!-- Arguments -->
 	<!-- Gazebo stuff -->
 		<arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
-		<arg name="x_pos" default="0.40"/>
-		<arg name="y_pos" default="0.4"/>
+		<arg name="x_pos" default="0.5"/>
+		<arg name="y_pos" default="0.5"/>
 		<arg name="z_pos" default="0.05"/>
-		<arg name="maze"  default="maze2" />
+		<arg name="maze"  default="maze3" />
 	<!-- Rviz stuff -->
 		<arg name="scan_topic"     default="scan"/>
 		<arg name="initial_pose_x" default="0.0"/>
@@ -97,7 +97,7 @@
 	<node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="log"/> 
 
 <!-- Path Controller node -->
-	<node name="frontier_explorer" pkg="final_rbe3002" type="frontier_explorer.py" output="log"/>
+	<node name="frontier_explorer" pkg="final_rbe3002" type="frontier_explorer.py" output="log"/> 
 
 <!-- Path Planner node -->
 	<node name="path_planner" pkg="final_rbe3002" type="path_planner.py" output="screen"/>
