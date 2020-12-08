@@ -1,14 +1,9 @@
 #!/usr/bin/env python
-
-import math
 import rospy
-import numpy as np
-import cv2
-from path_planner import PathPlanner
-from nav_msgs.msg import Odometry, Path, OccupancyGrid
-from nav_msgs.srv import GetMap, GetMapResponse, GetPlan, GetPlanResponse
+from nav_msgs.msg import Path, OccupancyGrid
+from nav_msgs.srv import GetPlan, GetPlanResponse
 from geometry_msgs.msg import PoseStamped
-from tf.transformations import euler_from_quaternion
+from std_msgs.msg import Bool
 
 class PathController:
 
@@ -22,10 +17,10 @@ class PathController:
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.handle_nav_goal
         self.PoseSubscriber = rospy.Subscriber("/move_base_simple/goal", PoseStamped, self.handle_nav_goal)
-        
+        self.MapFound = rospy.Subscriber("/whole_map_found", Bool, self.updatePhase)
         self.get_pathService = rospy.Service("next_path", GetPlan, self.get_path)
 
-        self.prev_state = 0
+        self.phase = 1
         self.new_nav_goal = False
         rospy.sleep(3.0)
         rospy.loginfo("Path Controller Node Initalized")
@@ -38,46 +33,50 @@ class PathController:
         self.nav_target = msg
         self.new_nav_goal = True
 
-    @staticmethod
-    def request_map():
+    def wait2DNavGoal(self):
         """
-        Requests the map from the map server.
-        :return [OccupancyGrid] The grid if the service call was successful,
-                                None in case of error.
+        wait until we have a 2d nav goal
         """
-        rospy.loginfo("Requesting the map")
-        rospy.wait_for_service('dynamic_map')
-        try:
-            static_map_service = rospy.ServiceProxy('dynamic_map', GetMap)
-            responce = static_map_service()
-            return responce.map
-        except rospy.ServiceException as e:
-            rospy.loginfo("service call failed: %s" %e)
-            return None
+        while not self.new_nav_goal:
+            rospy.sleep(1)
+        return self.nav_target
 
+    def updatePhase(self, msg):
+        """
+        update phase given msg from fronteir explorer
+        """
+        if msg.data == True:
+            self.phase = 3
+        else:
+            self.phase = 1
 
     def get_path(self, msg):
         """
+        upon receving a service call, loop until we have a path from path planner
         """
-
-        phase = 1
         target = None
         plan = None
         while not target or not plan:
+            phase = self.phase
             if phase == 1:
                 target = PoseStamped()
 
-            elif phase == 2:
+            elif phase == 2: #remove? 
                 target = msg.goal
 
             elif phase == 3:
                 target = self.wait2DNavGoal()
-            
-            plan = self.navToPoint(msg.start, target, phase)
+                self.new_nav_goal = False
+             
+            if not plan:
+                rospy.sleep(1)
+            else:
+                plan = self.navToPoint(msg.start, target, phase)
 
         return GetPlanResponse(plan.plan)
 
-    def navToPoint(self,cur_pose, goal, phase):
+    @staticmethod
+    def navToPoint(cur_pose, goal, phase):
         rospy.loginfo("Navigating to next point | In Phase #" + str(phase) + str(goal))
         rospy.wait_for_service("plan_path")
         if not goal:
@@ -91,13 +90,10 @@ class PathController:
         except rospy.ServiceException as e:
             rospy.loginfo("Service failed: %s"%e)
 
-
-    def wait2DNavGoal(self):
-        while not self.new_nav_goal:
-            rospy.sleep(0.5)
-        return self.nav_target
-
     def run(self):
+        """
+        Runs the node until Ctrl-C is pressed.
+        """
         rospy.spin()
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ import math, time
 import rospy
 import numpy as np
 import cv2
+from final_rbe3002.msg import keypoint, keypoint_map
 from priority_queue import PriorityQueue
 from nav_msgs.srv import GetPlan, GetPlanResponse, GetMap
 from nav_msgs.msg import GridCells, OccupancyGrid, Path
@@ -22,6 +23,8 @@ class PathPlanner:
         # Create a new service called "plan_path" that accepts messages of
         # type GetPlan and calls self.plan_path() when a message is received
         self.path_planService = rospy.Service("plan_path", GetPlan, self.plan_path)
+        #keypoint service will store map and keypoints from frointer explorer until use
+        self.KeypointReceiver = rospy.Subscriber("/Keypoint_map",keypoint_map, self.store_data) #TODO
         # Create a publisher for the C-space (the enlarged occupancy grid)
         # The topic is "/path_planner/cspace", the message type is GridCells
         self.C_spacePublisher = rospy.Publisher("/path_planner/cspace", GridCells, queue_size=1)
@@ -31,8 +34,12 @@ class PathPlanner:
         # Create publishers for A* (expanded cells, frontier, ...)
         # Choose a the topic names, the message type is GridCells
         self.A_starPublisher = rospy.Publisher("/path_planner/astar_path", Path, queue_size=1)
-        # Initialize the request counter
-        self.requestCounter = 0
+        
+
+        #stored map and kp data
+        self.stored_mapdata = None
+        self.stored_keypoints = None
+        self.new_data = False
         # Sleep to allow roscore to do some housekeeping
         rospy.sleep(1.0)
         rospy.loginfo("Path planner node ready")
@@ -294,7 +301,14 @@ class PathPlanner:
         return mapdata
 
     def a_star(self, mapdata, start, goal):
-        # REQUIRED CREDIT
+        """
+        calculates A* for given start and goal pose
+        :param: mapdata [OccupancyGrid]
+        :param: start [(int,int)]
+        :param: goal [(int,int)]
+        :return: path_list [[(int,int)]]
+        :return: grid [GridCells]
+        """
         rospy.loginfo("Executing A* from (%d,%d) to (%d,%d)" %
                       (start[0], start[1], goal[0], goal[1]))
         Queue = PriorityQueue()
@@ -305,7 +319,7 @@ class PathPlanner:
         cost[start] = 0
         start_time = time.time()
         time.clock()
-        timeout = 1
+        timeout = 3
         #initilize check_grid with the starting node
         checked_grid = [PathPlanner.grid_to_world(mapdata, start[0], start[1])]
         
@@ -313,7 +327,7 @@ class PathPlanner:
             current = Queue.get()
             if time.time() - start_time > timeout:
                 rospy.loginfo("A-Star Fail-Safe triggered")
-                return []           
+                return [],GridCells()          
             if current == goal:
                 #end when we are at the goal
                 break
@@ -347,12 +361,13 @@ class PathPlanner:
         grid.cell_height = mapdata.info.resolution
         # publish the message
         self.A_star_checkedPublisher.publish(grid)
-        print("Done with A*")
-        return path_list
+        return path_list,grid
 
     @staticmethod
-    #adds a cost of 0.01 if the robot has to make a turn between the two positions
     def calcTurnCost(pos0,pos1, pos2):
+        """
+        adds a cost of 0.01 if the robot has to make a turn between the two positions
+        """
         if pos0 == 0:
             return 0
         theta1 = PathPlanner.calcAngle(pos0,pos1)
@@ -402,7 +417,6 @@ class PathPlanner:
         slope_2 = 0
 
         for i in range(1, (len(path) - 1)):
-            print(i, path[i - 1], path[i], path[i + 1])
             # check the prevous node
             if (path[i][0] - path[i-1][0]) == 0:
                 slope_1 = float('inf')
@@ -419,10 +433,7 @@ class PathPlanner:
 
         better_path.append(path[len(path) - 1])
         return better_path
-
-        
-
-
+    
     def path_to_message(self, mapdata, path):
         """
         Takes a path on the grid and returns a Path message.
@@ -461,72 +472,41 @@ class PathPlanner:
         self.A_starPublisher.publish(world_path)
         # return the path
         return world_path
-
-    def findFrontier(self,mapdata, debug=False):
+        
+    def pickFrontier(self, mapdata, keypoints, start):
         """
-        generates Keypoints based on map data, this method performes a map service call
-        :param: Debug [boolean]
-        :return: keypoints [cv2.keypoints]
-        """
-        image = np.array(mapdata.data)
-        image = np.reshape(image, (-1,mapdata.info.width))
-        walls = np.copy(image)
-        walls[walls < 100] = 0
-        walls[walls >= 100] = 255
-        image[image > 0] = 255
-        walls = walls.astype(np.uint8)
-        image = image.astype(np.uint8)
-
-        
-        evidence_grid = cv2.Canny(image,99,100)
-        
-        kernel = np.ones((3,3), np.uint8)
-        img_dilation = cv2.dilate(evidence_grid, kernel, iterations=2)
-        subtracted = np.subtract(img_dilation,walls) 
-        fronitiers = cv2.erode(subtracted, np.ones((2,2)), iterations=2)
-        combined = cv2.dilate(fronitiers, kernel, iterations=5)
-        slimmed = cv2.erode(combined,kernel, iterations=6)
-        
-
-        params = cv2.SimpleBlobDetector_Params()
-        params.minThreshold = 200
-        params.filterByColor = False
-        params.filterByArea = False
-        params.filterByCircularity = False
-        params.filterByConvexity = False
-        params.filterByInertia = False
-
-        detector = cv2.SimpleBlobDetector_create(params)
-        detector.empty()
-        keypoints = detector.detect(slimmed)
-        
-        if debug:
-            #print(keypoints)
-            #for key in keypoints:
-            #    print(key.size)
-            im_with_keypoints = cv2.drawKeypoints(evidence_grid, keypoints, np.array([]), (0,255,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            cv2.imshow("evidnce_grid",im_with_keypoints)
-            cv2.imshow("walls",slimmed)
-            cv2.imshow("eg",fronitiers)
-            cv2.waitKey(5000)
-        
-        return keypoints
-        
-    def pickFrontier(self, mapdata, keypoints, start): #update to take into account the distance away we are from each point
-        best = (0,0)
-        max_h = 0 #float('inf')
+        selects the fronter to navigate to by checking 
+        the size of the fronter and size of the path
+        :param: mapdata [OccupancyGrid]
+        :param: keypoints [[keypoint]]
+        :param: start [(int,int)]
+        :return: bestPath [[(int,int)]]
+        """ 
+        max_h = 0
         alpha = 0.0
         beta = 1
         bestPath = []
+        bestGrid = GridCells()
 
-        for key in keypoints:
-            point = (int(key.pt[0]),int(key.pt[1]))
-            path = self.a_star(mapdata,start,point)
-            if len(path) > 0 and max_h < alpha/len(path) + beta * key.size:
-                max_h = alpha/len(path) + beta * key.size
-                best = point
+        for point in keypoints:
+            path,grid = self.a_star(mapdata,start,(point[0],point[1]))
+            if len(path) > 0 and max_h < alpha/len(path) + beta * point[2]:
+                max_h = alpha/len(path) + beta * point[2]
                 bestPath = path
-        return best,bestPath
+                bestGrid = grid
+        self.A_star_checkedPublisher.publish(bestGrid)
+        return bestPath
+
+    def store_data(self,msg):
+        self.new_data = True
+        self.stored_mapdata = msg.map
+        self.stored_keypoints = self.translate_kp(msg.keypoints)
+    
+    def translate_kp(self, keypoints):
+        kp = []
+        for kp_ in keypoints:
+            kp.append((kp_.x,kp_.y,kp_.size))
+        return kp
 
     def plan_path(self, msg):
         """
@@ -534,33 +514,39 @@ class PathPlanner:
         Internally uses A* to plan the optimal path.
         :param req 
         """
-        # Request the map
-        # In case of error, return an empty path
-        mapdata = PathPlanner.request_map()
-        if mapdata is None:
-            return Path()
-        # msg.tolerance is the phase number
-        start = PathPlanner.world_to_grid(mapdata, msg.start.pose.position)
-        goal = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
+        #path controller indicates phase by msg field
         phase = msg.tolerance
-        waypoints = []
-        if not PathPlanner.checkJunk(start,goal,3):
-            # Calculate the C-space and publish it
-            cspacedata = self.calc_cspace(mapdata, 4)
-            # calc frontier
-            if phase == 1:
-                print("calc fronteir")
-                keypoints = self.findFrontier(cspacedata,False)
-                goal,path = self.pickFrontier(cspacedata, keypoints,start)
-                print(goal)
-            else:
-                # Execute A*
-                path = self.a_star(cspacedata, start, goal)
-            # Optimize waypoints
-            waypoints = PathPlanner.optimize_path(path)
+        rospy.loginfo("Planning path")
+
+        if phase == 1:
+            # Check for map in storage
+            # In case of no map data, return an empty path
+            if not self.new_data:
+                return Path()
+            cspacedata = self.stored_mapdata
+            keypoints = self.stored_keypoints
+            #extract start pose from msg
+            start = PathPlanner.world_to_grid(cspacedata, msg.start.pose.position)
+            #calculate a path through heruistic
+            path = self.pickFrontier(cspacedata, keypoints,start)
+        else:
+            # Request the map
+            # In case of error, return an empty path
+            mapdata = PathPlanner.request_map()
+            if mapdata is None:
+                return Path()
             
+            start = PathPlanner.world_to_grid(mapdata, msg.start.pose.position)
+            goal = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
+            # Calculate the C-space and publish it
+            cspacedata = self.calc_cspace(mapdata, 1)
+            # Execute A*
+            path = self.a_star(cspacedata, start, goal)
+
+        # Optimize waypoints
+        waypoints = PathPlanner.optimize_path(path)
         # Return a Path message
-        return GetPlanResponse(self.path_to_message(mapdata, waypoints))
+        return GetPlanResponse(self.path_to_message(cspacedata, waypoints))
 
     def run(self):
         """
