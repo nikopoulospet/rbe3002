@@ -34,15 +34,25 @@ class PathController:
         self.new_nav_goal = True
 
     def wait2DNavGoal(self):
+        """
+        wait until we have a 2d nav goal
+        """
         while not self.new_nav_goal:
-            rospy.sleep(0.5)
+            rospy.sleep(1)
         return self.nav_target
 
     def updatePhase(self, msg):
-        self.phase = 3
+        """
+        update phase given msg from fronteir explorer
+        """
+        if msg.data == True:
+            self.phase = 3
+        else:
+            self.phase = 1
 
     def get_path(self, msg):
         """
+        upon receving a service call, loop until we have a path from path planner
         """
         target = None
         plan = None
@@ -56,10 +66,12 @@ class PathController:
 
             elif phase == 3:
                 target = self.wait2DNavGoal()
-            
-            plan = self.navToPoint(msg.start, target, phase)
+                self.new_nav_goal = False
+             
             if not plan:
                 rospy.sleep(1)
+            else:
+                plan = self.navToPoint(msg.start, target, phase)
 
         return GetPlanResponse(plan.plan)
 
@@ -79,6 +91,9 @@ class PathController:
             rospy.loginfo("Service failed: %s"%e)
 
     def run(self):
+        """
+        Runs the node until Ctrl-C is pressed.
+        """
         rospy.spin()
 
 if __name__ == "__main__":

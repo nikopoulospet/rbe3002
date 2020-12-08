@@ -53,18 +53,19 @@
 	
 	</include>
   
-<!-- Robot control node 
-	<node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4" output="log"/> -->
+<!-- Robot control node -->
+	<node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4" output="log"/> 
 
-<!-- Path Controller node 
-	<node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="log"/> -->
+<!-- Path Controller node -->
+	<node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="log"/> 
 
+<!-- Path Controller node -->
+	<node name="frontier_explorer" pkg="final_rbe3002" type="frontier_explorer.py" output="log"/>
 
-<!-- Path Planner node 
-	<node name="path_planner" pkg="final_rbe3002" type="path_planner.py" output="screen"/> -->
+<!-- Path Planner node -->
+	<node name="path_planner" pkg="final_rbe3002" type="path_planner.py" output="screen"/>
 
 <!-- Map converter node -->
 	<node name="map_converter" pkg="final_rbe3002" type="map_converter.py" output="log"/>
-
 
 </launch>

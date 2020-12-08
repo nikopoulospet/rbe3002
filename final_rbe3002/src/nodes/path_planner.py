@@ -301,7 +301,14 @@ class PathPlanner:
         return mapdata
 
     def a_star(self, mapdata, start, goal):
-        # REQUIRED CREDIT
+        """
+        calculates A* for given start and goal pose
+        :param: mapdata [OccupancyGrid]
+        :param: start [(int,int)]
+        :param: goal [(int,int)]
+        :return: path_list [[(int,int)]]
+        :return: grid [GridCells]
+        """
         rospy.loginfo("Executing A* from (%d,%d) to (%d,%d)" %
                       (start[0], start[1], goal[0], goal[1]))
         Queue = PriorityQueue()
@@ -354,12 +361,13 @@ class PathPlanner:
         grid.cell_height = mapdata.info.resolution
         # publish the message
         self.A_star_checkedPublisher.publish(grid)
-        print("Done with A*")
         return path_list,grid
 
     @staticmethod
-    #adds a cost of 0.01 if the robot has to make a turn between the two positions
     def calcTurnCost(pos0,pos1, pos2):
+        """
+        adds a cost of 0.01 if the robot has to make a turn between the two positions
+        """
         if pos0 == 0:
             return 0
         theta1 = PathPlanner.calcAngle(pos0,pos1)
@@ -465,9 +473,16 @@ class PathPlanner:
         # return the path
         return world_path
         
-    def pickFrontier(self, mapdata, keypoints, start): #update to take into account the distance away we are from each point
-        best = (0,0)
-        max_h = 0 #float('inf')
+    def pickFrontier(self, mapdata, keypoints, start):
+        """
+        selects the fronter to navigate to by checking 
+        the size of the fronter and size of the path
+        :param: mapdata [OccupancyGrid]
+        :param: keypoints [[keypoint]]
+        :param: start [(int,int)]
+        :return: bestPath [[(int,int)]]
+        """ 
+        max_h = 0
         alpha = 0.0
         beta = 1
         bestPath = []
@@ -479,7 +494,8 @@ class PathPlanner:
                 max_h = alpha/len(path) + beta * point[2]
                 bestPath = path
                 bestGrid = grid
-        return bestPath,bestGrid
+        self.A_star_checkedPublisher.publish(bestGrid)
+        return bestPath
 
     def store_data(self,msg):
         self.new_data = True
@@ -498,18 +514,21 @@ class PathPlanner:
         Internally uses A* to plan the optimal path.
         :param req 
         """
+        #path controller indicates phase by msg field
         phase = msg.tolerance
-        waypoints = []
-            # calc frontier
+        rospy.loginfo("Planning path")
+
         if phase == 1:
+            # Check for map in storage
+            # In case of no map data, return an empty path
             if not self.new_data:
                 return Path()
             cspacedata = self.stored_mapdata
             keypoints = self.stored_keypoints
-            print(keypoints)
+            #extract start pose from msg
             start = PathPlanner.world_to_grid(cspacedata, msg.start.pose.position)
-            path,grid = self.pickFrontier(cspacedata, keypoints,start)
-            self.A_star_checkedPublisher.publish(grid)
+            #calculate a path through heruistic
+            path = self.pickFrontier(cspacedata, keypoints,start)
         else:
             # Request the map
             # In case of error, return an empty path

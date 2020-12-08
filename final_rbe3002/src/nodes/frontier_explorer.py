@@ -5,39 +5,40 @@ from path_planner import PathPlanner
 from final_rbe3002.msg import keypoint, keypoint_map
 from std_msgs.msg import Bool
 from nav_msgs.srv import GetMap, GetMapResponse
-from nav_msgs.msg import OccupancyGrid
+from nav_msgs.msg import OccupancyGrid, GridCells
 
 class Frontier_Explorer:
 
     def __init__(self):
-        # Initialize the node and call it "Path Controller"
         rospy.init_node("Frontier_Explorer", anonymous=True)
         rospy.Rate(10.0)
         ### Tell ROS that this node subsribes to all new paths
-        self.PathPublisher = rospy.Publisher("/new_path", Bool, queue_size=1)     
+        #self.PathPublisher = rospy.Publisher("/new_path", Bool, queue_size=1)  
+        ##change state publisher
         self.MapFound = rospy.Publisher("/whole_map_found", Bool, queue_size=1)
+        ##publishes cspace to RVIZ
         self.C_spacePublisher = rospy.Publisher("/path_planner/cspace", GridCells, queue_size=1)
+        ##publisheds map and keypoints to path planner node to store
         self.Keypoint_map_publisher = rospy.Publisher("/Keypoint_map", keypoint_map, queue_size=1)
         
-        self.prev_kp = []
         rospy.sleep(1.0)
         rospy.loginfo("Frontier Explorer Node Initalized")
 
     def run(self):
+        """
+        run the main loop, continue generating and publishing maps to path planner
+        once a list of no key points is returned we know we have generated a whole map
+        upon a whole map found, send a msg to path controller to switch state
+        """
         while 1:
             mapdata = self.get_map()
-            if self.new_map():
-                Cspacedata = self.calc_cspace(mapdata, 3)
-                kp = self.findFrontier(Cspacedata,False)
-                if len(kp) == 0:
-                    break
-                kp_simple = self.simplify_keypoints(kp)
-                keypoints = self.translate_kp(kp_simple)
-                self.send_kp(Cspacedata,keypoints)
-                #msg = Bool()
-                #msg.data = True
-                #self.PathPublisher.publish(msg)
-                #rospy.signal_shutdown("all fronteirs explored")
+            Cspacedata = self.calc_cspace(mapdata, 3)
+            kp = self.findFrontier(Cspacedata,False)
+            if len(kp) == 0:
+                break
+            kp_simple = self.simplify_keypoints(kp)
+            keypoints = self.translate_kp(kp_simple)
+            self.send_kp(Cspacedata,keypoints)
         
         msg = Bool()
         msg.data = True
@@ -46,6 +47,11 @@ class Frontier_Explorer:
         rospy.signal_shutdown("all fronteirs explored")
 
     def translate_kp(self, keypoints):
+        """
+        translate the cv keypoints to a message format
+        :param: keypoints [(int,int,float)]
+        :return: kp [[keypoint]]
+        """
         kp = []
         for kp_ in keypoints:
             temp = keypoint()
@@ -56,35 +62,15 @@ class Frontier_Explorer:
         return kp
 
     def send_kp(self,mapdata,keypoints):
+        """
+        publishes mapdata and keypoints on /Keypoint_map topic
+        :param: mapdata [OccupancyGrid]
+        :param: keypoints [[keypoint]]
+        """
         msg = keypoint_map()
         msg.map = mapdata
         msg.keypoints = keypoints
         self.Keypoint_map_publisher.publish(msg)
-
-    def check_kp(self, keypoints):
-        """
-        checks if the current keypoints are different from the old ones
-        :param: keypoints [[(int,int,size)]]
-        :return: Bool
-        """
-        if self.prev_kp == []:
-            self.prev_kp = keypoints
-            return True
-        else:
-            if len(self.prev_kp) == len(keypoints):
-                seen = set()
-                index = 0
-                for kp in keypoints:
-                    while not kp[0] == self.prev_kp[index][0] and not kp[1] == self.prev_kp[index][1] and not self.prev_kp[index] in seen:
-                        index += 1
-                        if index >= len(self.prev_kp):
-                            return False
-                    seen.add(self.prev_kp[index])
-
-                self.prev_kp = keypoints
-                return True
-            else:
-                return False
 
     def simplify_keypoints(self, keypoints):
         """
@@ -96,9 +82,6 @@ class Frontier_Explorer:
         for kp in keypoints:
             kp_simple.append((int(kp.pt[0]),int(kp.pt[1]),kp.size))
         return kp_simple
-
-    def new_map(self):
-        return True
 
     def get_map(self):
         """
@@ -137,11 +120,9 @@ class Frontier_Explorer:
         grid.cell_height = mapdata.info.resolution
         self.C_spacePublisher.publish(grid)
 
-        sizeOF = (mapdata.info.width * mapdata.info.height)
         padded_map = []
         for cell in mapdata.data:
             padded_map.append(cell)
-            #[0] * sizeOF #set all values in new list to walkable
 
         # Apply kernel to grid and create padded grid
         x = 0
