@@ -544,9 +544,9 @@ class PathPlanner:
         goal = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
         phase = msg.tolerance
         waypoints = []
-        if not PathPlanner.checkJunk(start,goal,2):
+        if not PathPlanner.checkJunk(start,goal,3):
             # Calculate the C-space and publish it
-            cspacedata = self.calc_cspace(mapdata, 1)
+            cspacedata = self.calc_cspace(mapdata, 4)
             # calc frontier
             if phase == 1:
                 print("calc fronteir")

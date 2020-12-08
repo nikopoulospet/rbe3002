@@ -3,9 +3,9 @@
 import rospy
 import math
 import time
-from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry, Path
 from nav_msgs.srv import GetPlan
+from std_msgs.msg import Bool
 from std_srvs.srv import Empty
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, PoseArray
 from geometry_msgs.msg import Twist
@@ -28,10 +28,12 @@ class Robot_controller:
         ### Tell ROS that this node subscribes to Odometry messages on the '/odom' topic
         ### When a message is received, call self.update_odometry
         self.OdometrySubscriber = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.update_odometry)
+        self.AMCL_OdometrySubscriber = rospy.Subscriber("/odom", Odometry, self.update_odometry)
         ### Tell ROS that this node subscribes to PoseStamped messages on the '/move_base_simple/goal' topic
         ### When a message is received, call self.go_to
-        self.PathSubscriber = rospy.Subscriber("/new_path", Bool, self.update_path)
+        self.PathSubscriber = rospy.Subscriber("/current_path", Path, self.handle_path)
         self.PoseCloudSubscriber = rospy.Subscriber("/particlecloud", PoseArray, self.handle_pose_prob)
+        self.PhaseChanger = rospy.Subscriber("/whole_map_found", Bool, self.change_phase)
 
         ### ROBOT PARAMETERS
         self.px = 0 # pose x
@@ -40,14 +42,16 @@ class Robot_controller:
         self.maxWheelSpeed = 0.22 #physcial limit by turtlebot 3
         self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178 # L = 0.178 m
         self.cur_path_id = 0
-        self.new_path = False
         self.done_nav_flag = True
         self.inital_pos = PoseStamped()
         self.localized = False
+        self.phase = 1
 
         rospy.loginfo("Robot Controller Node Initalized")
 
-
+    def change_phase(self, msg):
+        if(msg.data):
+            self.phase = 2
 
     def send_speed(self, linear_speed, angular_speed):
         """
@@ -170,17 +174,19 @@ class Robot_controller:
         This method is a callback bound to a Subscriber.
         :param msg [Odometry] The current odometry information.
         """
-        # read the pos from the message
-        self.px = msg.pose.pose.position.x
-        self.py = msg.pose.pose.position.y
+        msg_type = str(msg._type)
+        if ((self.phase == 1 and msg_type == "nav_msgs/Odometry") or (self.phase != 1 and msg_type == "geometry_msgs/PoseWithCovarianceStamped")):
+            # read the pos from the message
+            self.px = msg.pose.pose.position.x
+            self.py = msg.pose.pose.position.y
 
-        print(msg.pose.covariance)
-        # convert the quarerniaon to a euler angle
-        quat_orig = msg.pose.pose.orientation # (x,y,z,w)
-        quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
-        (roll, pitch, yaw) = euler_from_quaternion(quat_list)
-        # update the save yaw
-        self.yaw = yaw
+            # convert the quarerniaon to a euler angle
+            quat_orig = msg.pose.pose.orientation # (x,y,z,w)
+            quat_list = [quat_orig.x,quat_orig.y,quat_orig.z,quat_orig.w]
+            (roll, pitch, yaw) = euler_from_quaternion(quat_list)
+            # update the save yaw
+            self.yaw = yaw
+        
 
     def drive_to_point(self, point, linear_speed):
         """
@@ -258,20 +264,20 @@ class Robot_controller:
         rospy.loginfo("Done Driving to Point")
 
     def handle_path(self, msg):
+        # making it so if a new path comes in this one is canncelled
+        self.cur_path_id += 1
+        my_id = self.cur_path_id
+
         # get the path from the msg
         path = msg.plan.poses
 
         for point in path:
             self.go_to(point)
-            if(self.new_path):
-                #given new path, return to make a new service call to PP
+            if(my_id != self.cur_path_id):
                 rospy.loginfo("Path Interupted")
                 break
         self.done_nav_flag = True
         rospy.loginfo("Done with Path")
-    
-    def update_path(self, msg):
-        self.new_path = msg.data
     
     def handle_pose_prob(self, msg):
 
@@ -341,11 +347,15 @@ class Robot_controller:
 
                         #get a path and response
                         response = plan(cur_pose, goal, 0.15)
-                        self.new_path = False
                         self.done_nav_flag = False
+                        #print(response)
                         self.handle_path(response)
                     except rospy.ServiceException as e:
                         rospy.loginfo("Service failed: %s"%e)
+                else:
+                    print("NOT LOCALIZED")
+            else:
+                print("DONE NAV FALG = flase")
             time.sleep(1)
 
 if __name__ == '__main__':
