@@ -33,6 +33,7 @@ class Robot_controller:
         ### When a message is received, call self.go_to
         self.PathSubscriber = rospy.Subscriber("/current_path", Path, self.handle_path)
         self.PoseCloudSubscriber = rospy.Subscriber("/particlecloud", PoseArray, self.handle_pose_prob)
+        self.PathSubscriber = rospy.Subscriber("/new_path", Bool, self.update_path)
         self.PhaseChanger = rospy.Subscriber("/whole_map_found", Bool, self.change_phase)
 
         ### ROBOT PARAMETERS
