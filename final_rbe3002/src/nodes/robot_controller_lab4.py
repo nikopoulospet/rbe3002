@@ -47,12 +47,14 @@ class Robot_controller:
         self.inital_pos = PoseStamped()
         self.localized = False
         self.phase = 1
+        self.new_path = False
 
         rospy.loginfo("Robot Controller Node Initalized")
 
     def change_phase(self, msg):
         if(msg.data):
             self.phase = 2
+            self.new_path = True
 
     def send_speed(self, linear_speed, angular_speed):
         """
@@ -109,6 +111,8 @@ class Robot_controller:
         angular_error_queue = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
 
         while((abs(target_angle - (current_angle))) > tolerance):
+            if(self.new_path):
+                break
             time.sleep(sleep_time)
             ## Angular PID
             # P control on the the robots yaw
@@ -217,6 +221,8 @@ class Robot_controller:
         #start of drive to point control loop
         while abs(math.sqrt((point.x - self.px) ** 2 + (point.y - self.py) ** 2)) > tolerance:
             #timing the loop
+            if(self.new_path):
+                break
             current_time = rospy.get_rostime().nsecs/1000000
             
             ### PID calculations
@@ -263,17 +269,16 @@ class Robot_controller:
         self.send_speed(0, 0)
         rospy.loginfo("Done Driving to Point")
 
-    def handle_path(self, msg):
-        # making it so if a new path comes in this one is canncelled
-        self.cur_path_id += 1
-        my_id = self.cur_path_id
+    def update_path(self, msg):
+        self.new_path = msg.data
 
+    def handle_path(self, msg):
         # get the path from the msg
         path = msg.plan.poses
 
         for point in path:
             self.go_to(point)
-            if(my_id != self.cur_path_id):
+            if(self.new_path):
                 rospy.loginfo("Path Interupted")
                 break
         self.done_nav_flag = True
@@ -348,6 +353,7 @@ class Robot_controller:
                         #get a path and response
                         response = plan(cur_pose, goal, 0.15)
                         self.done_nav_flag = False
+                        self.new_path = False
                         #print(response)
                         self.handle_path(response)
                     except rospy.ServiceException as e:

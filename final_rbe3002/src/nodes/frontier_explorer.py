@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-
+import cv2
+import numpy as np
 import rospy
 from path_planner import PathPlanner
 from final_rbe3002.msg import keypoint, keypoint_map
@@ -32,7 +33,7 @@ class Frontier_Explorer:
         """
         while 1:
             mapdata = self.get_map()
-            Cspacedata = self.calc_cspace(mapdata, 3)
+            Cspacedata = self.calc_cspace(mapdata, 4)
             kp = self.findFrontier(Cspacedata,False)
             if len(kp) == 0:
                 break

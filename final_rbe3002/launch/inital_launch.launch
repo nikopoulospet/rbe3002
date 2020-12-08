@@ -91,7 +91,7 @@
 	</node>
   
 <!-- Robot control node -->
-	<node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4" output="log"/> 
+	<node pkg="final_rbe3002" type="robot_controller_lab4.py" name="robot_controller_lab4" output="screen"/> 
 
 <!-- Path Controller node -->
 	<node name="path_controller" pkg="final_rbe3002" type="path_controller.py" output="log"/> 

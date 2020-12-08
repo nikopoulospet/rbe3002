@@ -544,6 +544,8 @@ class PathPlanner:
             path = self.a_star(cspacedata, start, goal)
 
         # Optimize waypoints
+        if path == []:
+            return Plan()
         waypoints = PathPlanner.optimize_path(path)
         # Return a Path message
         return GetPlanResponse(self.path_to_message(cspacedata, waypoints))

@@ -67,11 +67,10 @@ class PathController:
             elif phase == 3:
                 target = self.wait2DNavGoal()
                 self.new_nav_goal = False
-             
+            
+            plan = self.navToPoint(msg.start, target, phase)
             if not plan:
                 rospy.sleep(1)
-            else:
-                plan = self.navToPoint(msg.start, target, phase)
 
         return GetPlanResponse(plan.plan)
 
