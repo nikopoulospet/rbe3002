@@ -1,0 +1,9 @@
+<launch>
+    <env name="GAZEBO_MODEL_PATH" value="$(find rbe3002_final)/models:$(optenv GAZEBO_MODEL_PATH"/>
+    <include file="$(find rbe3002-turtlebot)/launch/turtlebot3002_world.launch">
+        <arg name="world_name" value="$(find rbe3002_final)/worlds/final_maze.world"/>
+        <arg name="x_pos" value="-2.2"/>
+        <arg name="y_pos" value="0.4"/>
+        <arg name="z_pos" value="0.05"/>
+    </include>
+</launch>

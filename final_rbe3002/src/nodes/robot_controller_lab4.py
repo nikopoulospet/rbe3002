@@ -5,6 +5,7 @@ import math
 import time
 from nav_msgs.msg import Odometry, Path
 from nav_msgs.srv import GetPlan
+from sensor_msgs.msg import Imu
 from std_msgs.msg import Bool
 from std_srvs.srv import Empty
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, PoseArray
@@ -327,7 +328,7 @@ class Robot_controller:
         sum_dy = 0
 
         #cal the avg error in the array
-        if(not self.localized):
+        if(True):#not self.localized):
             #find the average pos
             for i in msg.poses:
                 sum_x += i.position.x
