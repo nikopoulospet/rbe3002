@@ -2,8 +2,8 @@
 <!-- Arguments -->
 	<!-- Gazebo stuff -->
 		<arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
-		<arg name="x_pos" default="0.5"/>
-		<arg name="y_pos" default="0.5"/>
+		<arg name="x_pos" default="0.6"/>
+		<arg name="y_pos" default="0.6"/>
 		<arg name="z_pos" default="0.05"/>
 		<arg name="maze"  default="maze3" />
 	<!-- Rviz stuff -->
@@ -52,7 +52,6 @@
 		<param name="~selective_resampling"  value="false" />
 		<param name="~use_map_topic"  value="false" />
 		<param name="~tf_broadcast"  value="false" />
-		<param name="odom_frame_id"  value="odom" />
 
 		<param name="min_particles"             value="500"/>
 		<param name="max_particles"             value="3000"/>

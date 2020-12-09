@@ -2,6 +2,7 @@
 import cv2
 import numpy as np
 import rospy
+import copy
 from path_planner import PathPlanner
 from final_rbe3002.msg import keypoint, keypoint_map
 from std_msgs.msg import Bool
@@ -33,8 +34,9 @@ class Frontier_Explorer:
         """
         while 1:
             mapdata = self.get_map()
+            real_map = copy.deepcopy(mapdata)
             Cspacedata = self.calc_cspace(mapdata, 3)
-            kp = self.findFrontier(Cspacedata,False)
+            kp = self.findFrontier(Cspacedata, real_map, False)
             if len(kp) == 0:
                 break
             kp_simple = self.simplify_keypoints(kp)
@@ -154,32 +156,30 @@ class Frontier_Explorer:
         mapdata.data = padded_map
         return mapdata
 
-    def findFrontier(self,mapdata, debug=False):
+    def findFrontier(self, cspacemap, mapdata, debug=False):
         """
         generates Keypoints based on map data, this method performes a map service call
         :param: Debug [boolean]
         :return: keypoints [cv2.keypoints]
         """
         rospy.loginfo("calcuating frontiers")
-        image = np.array(mapdata.data)
-        image = np.reshape(image, (-1,mapdata.info.width))
-        walls = np.copy(image)
-        walls[walls < 100] = 0
-        walls[walls >= 100] = 255
-        image[image > 0] = 255
+        
+        cspace = np.array(cspacemap.data)
+        cspace = np.reshape(cspace, (-1,cspacemap.info.width))
+        walls = np.array(mapdata.data)
+        walls = np.reshape(walls, (-1,mapdata.info.width))
+        walls[walls >= 0] = 255
+        walls[walls < 0] = 0
+        cspace[cspace > 0] = 255
         walls = walls.astype(np.uint8)
-        image = image.astype(np.uint8)
-
+        cspace = cspace.astype(np.uint8)
         
-        evidence_grid = cv2.Canny(image,99,100)
-        
-        kernel = np.ones((3,3), np.uint8)
-        img_dilation = cv2.dilate(evidence_grid, kernel, iterations=2)
-        subtracted = np.subtract(img_dilation,walls) 
-        fronitiers = cv2.erode(subtracted, np.ones((2,2)), iterations=2)
-        combined = cv2.dilate(fronitiers, kernel, iterations=5)
-        slimmed = cv2.erode(combined,kernel, iterations=6)
-        
+        kernel = np.ones((2,2), np.uint8)
+        # get the edges between the know and unknown
+        evidence_grid = cv2.Canny(walls,99,100)
+        evidence_grid = cv2.dilate(evidence_grid,kernel,iterations=2)
+        subtracted = np.subtract(evidence_grid,cspace)
+        combined = cv2.dilate(subtracted, kernel, iterations=5)
 
         params = cv2.SimpleBlobDetector_Params()
         params.minThreshold = 200
@@ -191,16 +191,18 @@ class Frontier_Explorer:
 
         detector = cv2.SimpleBlobDetector_create(params)
         detector.empty()
-        keypoints = detector.detect(slimmed)
+        keypoints = detector.detect(combined)
         rospy.loginfo("found frontiers")
         if debug:
             #print(keypoints)
             #for key in keypoints:
             #    print(key.size)
             im_with_keypoints = cv2.drawKeypoints(evidence_grid, keypoints, np.array([]), (0,255,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            cv2.imshow("evidnce_grid",im_with_keypoints)
-            cv2.imshow("walls",slimmed)
-            cv2.imshow("eg",fronitiers)
+            cv2.imshow("im_with_keypoints",im_with_keypoints)
+            cv2.imshow("combined",combined)
+            cv2.imshow("subtracted",subtracted)
+            cv2.imshow("evidince grid",evidence_grid)
+            cv2.imshow("walls", walls)
             cv2.waitKey(5000)
         
         return keypoints

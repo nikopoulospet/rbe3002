@@ -35,6 +35,7 @@ class Robot_controller:
         self.PoseCloudSubscriber = rospy.Subscriber("/particlecloud", PoseArray, self.handle_pose_prob)
         self.PathSubscriber = rospy.Subscriber("/new_path", Bool, self.update_path)
         self.PhaseChanger = rospy.Subscriber("/whole_map_found", Bool, self.change_phase)
+        self.AMCL_posePublisher = rospy.Publisher("/initialpose",PoseWithCovarianceStamped,queue_size=1)
 
         ### ROBOT PARAMETERS
         self.px = 0 # pose x
@@ -48,13 +49,17 @@ class Robot_controller:
         self.localized = False
         self.phase = 1
         self.new_path = False
+        self.latest_pos_covariance = None
+        self.saved_pose = None
 
         rospy.loginfo("Robot Controller Node Initalized")
 
     def change_phase(self, msg):
         if(msg.data):
-            self.phase = 2
             self.new_path = True
+            rospy.sleep(1)
+            self.phase = 2
+            
 
     def send_speed(self, linear_speed, angular_speed):
         """
@@ -179,10 +184,14 @@ class Robot_controller:
         :param msg [Odometry] The current odometry information.
         """
         msg_type = str(msg._type)
-        if ((self.phase == 1 and msg_type == "nav_msgs/Odometry") or (self.phase != 1 and msg_type == "geometry_msgs/PoseWithCovarianceStamped")):
+        if ((self.phase != 3 and msg_type == "nav_msgs/Odometry") or (self.phase == 3 and msg_type == "geometry_msgs/PoseWithCovarianceStamped")):
+            if(self.phase != 1):
+                print( "POSE UPDATED USING " + str(msg_type))
+
             # read the pos from the message
             self.px = msg.pose.pose.position.x
             self.py = msg.pose.pose.position.y
+            self.saved_pose = msg.pose
 
             # convert the quarerniaon to a euler angle
             quat_orig = msg.pose.pose.orientation # (x,y,z,w)
@@ -190,6 +199,8 @@ class Robot_controller:
             (roll, pitch, yaw) = euler_from_quaternion(quat_list)
             # update the save yaw
             self.yaw = yaw
+        if(msg_type == "geometry_msgs/PoseWithCovarianceStamped"):
+            self.latest_pos_covariance = msg.pose.covariance
         
 
     def drive_to_point(self, point, linear_speed):
@@ -203,6 +214,8 @@ class Robot_controller:
         tolerance = 0.04
         sleep_time = 0.06
         
+        start_time = time.time()
+        time.clock()
 
         # PID variables
         Kp = 4
@@ -263,7 +276,17 @@ class Robot_controller:
             rospy.sleep(sleep_time)
             # variables for next loop
             p_error_old = p_error
-            
+
+            if (time.time() - start_time > 20):
+                    rospy.loginfo("Drive to Point Fail-Safe triggered")
+                    self.send_speed(-0.2, 0)
+                    time.sleep(1)
+                    self.send_speed(0, 1)
+                    time.sleep(3)
+                    self.localized = False
+                    while not self.localized:
+                        print("Waiting to loczlize")
+                    start_time = time.time()
             
         # stop the robot from driving
         self.send_speed(0, 0)
@@ -282,6 +305,15 @@ class Robot_controller:
                 rospy.loginfo("Path Interupted")
                 break
         self.done_nav_flag = True
+        if(self.phase == 2):
+            self.phase = 3
+            new_pose = PoseWithCovarianceStamped()
+            new_pose.pose.covariance = self.latest_pos_covariance
+            new_pose.pose.pose = self.saved_pose.pose
+            self.AMCL_posePublisher.publish(new_pose)
+            localization = rospy.ServiceProxy('global_localization', Empty)
+            null = localization()
+            self.localized = False
         rospy.loginfo("Done with Path")
     
     def handle_pose_prob(self, msg):
@@ -318,7 +350,6 @@ class Robot_controller:
                 self.localized = True
 
             else:
-                print(str(distance))
                 self.localize()
         else:
             pass

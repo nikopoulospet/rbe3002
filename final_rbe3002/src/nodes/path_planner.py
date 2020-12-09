@@ -301,7 +301,7 @@ class PathPlanner:
         self.C_spacePublisher.publish(grid)
         # Return the C-space with padded map array
         mapdata.data = padded_map
-        print(padded_map)
+        
         return mapdata
 
     def a_star(self, mapdata, start, goal):
@@ -410,7 +410,6 @@ class PathPlanner:
         :param path [[(x,y)]] The path as a list of tuples (grid coordinates)
         :return     [[(x,y)]] The optimized path as a list of tuples (grid coordinates)
         """
-        
         # EXTRA CREDIT
         rospy.loginfo("Optimizing path")
         # creates a list to store the optimized path
@@ -450,7 +449,7 @@ class PathPlanner:
         world_path.poses = []
         world_path.header.frame_id = "map"
         # loop through the path
-        for index in range(0,len(path)):
+        for index in range(len(path)):
             # initilize the current pose
             stamped_pose = PoseStamped()
             # find the point in the real world
@@ -493,9 +492,11 @@ class PathPlanner:
         bestGrid = GridCells()
 
         for point in keypoints:
+            size = point[2]
+            point = self.check_if_in_cspace(mapdata, point)
             path,grid = self.a_star(mapdata,start,(point[0],point[1]))
-            if not PathPlanner.checkJunk(start,point,5) and len(path) > 0 and max_h < alpha/len(path) + beta * point[2]:
-                max_h = alpha/len(path) + beta * point[2]
+            if not PathPlanner.checkJunk(start,point,5) and len(path) > 0 and max_h < alpha/len(path) + beta * size:
+                max_h = alpha/len(path) + beta * size
                 bestPath = path
                 bestGrid = grid
         self.A_star_checkedPublisher.publish(bestGrid)
@@ -572,13 +573,13 @@ class PathPlanner:
             mapdata = PathPlanner.request_map()
             if mapdata is None:
                 return Path()
-            
-            start = PathPlanner.world_to_grid(mapdata, msg.start.pose.position)
+            cspacedata = self.calc_cspace(mapdata, 3)
+            start = self.check_if_in_cspace(cspacedata, PathPlanner.world_to_grid(mapdata, msg.start.pose.position))
             goal = PathPlanner.world_to_grid(mapdata, msg.goal.pose.position)
             # Calculate the C-space and publish it
-            cspacedata = self.calc_cspace(mapdata, 1)
+            goal = self.check_if_in_cspace(cspacedata, goal)
             # Execute A*
-            path = self.a_star(cspacedata, start, goal)
+            path, foo = self.a_star(cspacedata, start, goal)
 
         # Optimize waypoints
         if path == []:

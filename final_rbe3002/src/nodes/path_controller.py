@@ -21,6 +21,7 @@ class PathController:
         self.get_pathService = rospy.Service("next_path", GetPlan, self.get_path)
 
         self.phase = 1
+        self.initial_pose = None
         self.new_nav_goal = False
         rospy.sleep(3.0)
         rospy.loginfo("Path Controller Node Initalized")
@@ -46,7 +47,7 @@ class PathController:
         update phase given msg from fronteir explorer
         """
         if msg.data == True:
-            self.phase = 3
+            self.phase = 2
         else:
             self.phase = 1
 
@@ -54,16 +55,19 @@ class PathController:
         """
         upon receving a service call, loop until we have a path from path planner
         """
+        if(self.initial_pose == None):
+            self.initial_pose = msg.start
         target = None
         plan = None
+        
         while not target or not plan:
             phase = self.phase
             if phase == 1:
                 target = PoseStamped()
 
             elif phase == 2: #remove? 
-                target = msg.goal
-
+                target = self.initial_pose
+                self.phase = 3
             elif phase == 3:
                 target = self.wait2DNavGoal()
                 self.new_nav_goal = False
