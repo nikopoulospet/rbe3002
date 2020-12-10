@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import rospy
+import time
 from nav_msgs.msg import Path, OccupancyGrid
 from nav_msgs.srv import GetPlan, GetPlanResponse
 from geometry_msgs.msg import PoseStamped
@@ -65,15 +66,20 @@ class PathController:
 
             elif phase == 2: #remove? 
                 target = self.initial_pose
-                self.phase = 3
             elif phase == 3:
-                target = self.wait2DNavGoal()
-                self.new_nav_goal = False
+                if(msg.goal == PoseStamped()):
+                    target = self.wait2DNavGoal()
+                    self.new_nav_goal = False
+                else:
+                    target = msg.goal
+
             
             plan = self.navToPoint(msg.start, target, phase)
             if not plan:
                 rospy.sleep(1)
-
+        if(self.phase == 2):
+            time.sleep(5)
+            self.phase = 3
         return GetPlanResponse(plan.plan)
 
     @staticmethod

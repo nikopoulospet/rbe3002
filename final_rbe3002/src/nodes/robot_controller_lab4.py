@@ -52,15 +52,18 @@ class Robot_controller:
         self.new_path = False
         self.latest_pos_covariance = None
         self.saved_pose = None
+        self.fail_safed = False
+        self.last_goal = None
 
         rospy.loginfo("Robot Controller Node Initalized")
 
     def change_phase(self, msg):
         if(msg.data):
-            self.phase = 2
             self.new_path = True
+            rospy.sleep(1)
+            self.phase = 2
             self.maxWheelSpeed = 0.11
-            self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178
+            self.maxAngularSpeed = (self.maxWheelSpeed * 2 / 0.178 ) * 0.75
             rospy.sleep(1)
             
 
@@ -284,6 +287,7 @@ class Robot_controller:
 
             if (time.time() - start_time > 30):
                 self.new_path = True
+                self.fail_safed = True
                 
         # stop the robot from driving
         self.send_speed(0, 0)
@@ -303,13 +307,6 @@ class Robot_controller:
                 break
         self.done_nav_flag = True
         if(self.phase == 2):
-            new_pose = PoseWithCovarianceStamped()
-            new_pose.pose.covariance = self.latest_pos_covariance
-            new_pose.pose.pose = self.saved_pose.pose
-            new_pose.header.frame_id = "odom"
-            self.AMCL_posePublisher.publish(new_pose)
-            localization = rospy.ServiceProxy('global_localization', Empty)
-            null = localization()
             self.localized = False
             self.phase = 3
         rospy.loginfo("Done with Path")
@@ -374,6 +371,9 @@ class Robot_controller:
                         #path service call
                         plan = rospy.ServiceProxy('next_path', GetPlan)
                         goal = PoseStamped()
+                        if(self.fail_safed and self.phase == 3):
+                            goal = self.last_goal
+                            self.fail_safed = False
 
                         #path params
                         cur_pose = PoseStamped()
@@ -384,12 +384,22 @@ class Robot_controller:
                         response = plan(cur_pose, goal, 0.15)
                         self.done_nav_flag = False
                         self.new_path = False
-                        #print(response)
+
+                        if(self.phase == 2):
+                            new_pose = PoseWithCovarianceStamped()
+                            new_pose.pose.covariance = self.latest_pos_covariance
+                            new_pose.pose.pose = self.saved_pose.pose
+                            new_pose.header.frame_id = "odom"
+                            self.AMCL_posePublisher.publish(new_pose)
+                            localization = rospy.ServiceProxy('global_localization', Empty)
+                            null = localization()
+                        self.last_goal = response.plan.poses[len(response.plan.poses)-1]
                         self.handle_path(response)
                     except rospy.ServiceException as e:
                         rospy.loginfo("Service failed: %s"%e)
                 else:
                     print("NOT LOCALIZED")
+                    self.localize()
             else:
                 print("DONE NAV FALG = flase")
             time.sleep(1)

@@ -486,8 +486,8 @@ class PathPlanner:
         :return: bestPath [[(int,int)]]
         """ 
         max_h = 0
-        alpha = 0.99
-        beta = 0.01
+        alpha = 0.9999
+        beta = 0.0001
         bestPath = []
         bestGrid = GridCells()
 
@@ -495,8 +495,8 @@ class PathPlanner:
             size = point[2]
             point = self.check_if_in_cspace(mapdata, point)
             path,grid = self.a_star(mapdata,start,(point[0],point[1]))
-            if not PathPlanner.checkJunk(start,point,5) and len(path) > 0 and max_h < alpha/len(path) + beta * (size/3):
-                max_h = alpha/len(path) + beta * (size/3)
+            if not PathPlanner.checkJunk(start,point,5) and len(path) > 0 and max_h < alpha/len(path) + beta * (size/9):
+                max_h = alpha/len(path) + beta * (size/9)
                 bestPath = path
                 bestGrid = grid
         self.A_star_checkedPublisher.publish(bestGrid)
