@@ -47,7 +47,7 @@ class Robot_controller:
         self.cur_path_id = 0
         self.done_nav_flag = True
         self.inital_pos = PoseStamped()
-        self.localized = False
+        self.localized = True
         self.phase = 1
         self.new_path = False
         self.latest_pos_covariance = None
@@ -57,9 +57,11 @@ class Robot_controller:
 
     def change_phase(self, msg):
         if(msg.data):
-            self.new_path = True
-            rospy.sleep(1)
             self.phase = 2
+            self.new_path = True
+            self.maxWheelSpeed = 0.11
+            self.maxAngularSpeed = self.maxWheelSpeed*2 / 0.178
+            rospy.sleep(1)
             
 
     def send_speed(self, linear_speed, angular_speed):
@@ -213,6 +215,8 @@ class Robot_controller:
         rospy.loginfo("Driving to Point")
         # drive to point drive peramiters
         tolerance = 0.04
+        if(self.phase == 3 ):
+            tolerance = 0.08
         sleep_time = 0.06
         
         start_time = time.time()
@@ -278,17 +282,9 @@ class Robot_controller:
             # variables for next loop
             p_error_old = p_error
 
-            if (time.time() - start_time > 20):
-                    rospy.loginfo("Drive to Point Fail-Safe triggered")
-                    self.send_speed(-0.2, 0)
-                    time.sleep(1)
-                    self.send_speed(0, 1)
-                    time.sleep(3)
-                    self.localized = False
-                    while not self.localized:
-                        print("Waiting to loczlize")
-                    start_time = time.time()
-            
+            if (time.time() - start_time > 30):
+                self.new_path = True
+                
         # stop the robot from driving
         self.send_speed(0, 0)
         rospy.loginfo("Done Driving to Point")
@@ -307,14 +303,15 @@ class Robot_controller:
                 break
         self.done_nav_flag = True
         if(self.phase == 2):
-            self.phase = 3
             new_pose = PoseWithCovarianceStamped()
             new_pose.pose.covariance = self.latest_pos_covariance
             new_pose.pose.pose = self.saved_pose.pose
+            new_pose.header.frame_id = "odom"
             self.AMCL_posePublisher.publish(new_pose)
             localization = rospy.ServiceProxy('global_localization', Empty)
             null = localization()
             self.localized = False
+            self.phase = 3
         rospy.loginfo("Done with Path")
     
     def handle_pose_prob(self, msg):
@@ -328,7 +325,7 @@ class Robot_controller:
         sum_dy = 0
 
         #cal the avg error in the array
-        if(True):#not self.localized):
+        if(not self.localized):
             #find the average pos
             for i in msg.poses:
                 sum_x += i.position.x
@@ -360,14 +357,15 @@ class Robot_controller:
 
     def run(self):
         rospy.wait_for_service('next_path',timeout=None)
+        rospy.wait_for_message("/odom", Odometry)
         # save the inital positon
         
         self.inital_pos.pose.position.x = self.px
         self.inital_pos.pose.position.y = self.py
 
         #start localization
-        localization = rospy.ServiceProxy('global_localization', Empty)
-        null = localization()
+        #localization = rospy.ServiceProxy('global_localization', Empty)
+        #null = localization()
 
         while(1):
             if(self.done_nav_flag):

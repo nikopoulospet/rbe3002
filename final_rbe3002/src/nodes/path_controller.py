@@ -46,10 +46,8 @@ class PathController:
         """
         update phase given msg from fronteir explorer
         """
-        if msg.data == True:
+        if msg.data:
             self.phase = 2
-        else:
-            self.phase = 1
 
     def get_path(self, msg):
         """

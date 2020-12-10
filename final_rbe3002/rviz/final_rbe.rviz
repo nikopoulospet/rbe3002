@@ -4,13 +4,14 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
+        - /Map1
         - /Map_axes1
         - /GridCells1
         - /check cells1
         - /Path1
         - /LaserScan1
       Splitter Ratio: 0.6133909225463867
-    Tree Height: 363
+    Tree Height: 549
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -29,7 +30,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: LaserScan
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -168,8 +169,8 @@ Visualization Manager:
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
-        Max Value: 0.18351297080516815
-        Min Value: 0.1554521769285202
+        Max Value: 0.18298746645450592
+        Min Value: 0.18278521299362183
         Value: true
       Axis: Z
       Channel Name: intensity
@@ -194,6 +195,22 @@ Visualization Manager:
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
+      Value: true
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.009999999776482582
+      Class: rviz/PoseArray
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.07000000029802322
+      Head Radius: 0.029999999329447746
+      Name: PoseArray
+      Shaft Length: 0.23000000417232513
+      Shaft Radius: 0.009999999776482582
+      Shape: Arrow (Flat)
+      Topic: /particlecloud
+      Unreliable: false
       Value: true
   Enabled: true
   Global Options:
@@ -223,16 +240,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 5.61154317855835
+      Distance: 9.19762897491455
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.5619404315948486
-        Y: 0.3925391733646393
-        Z: -0.3750530779361725
+        X: 0.3498743772506714
+        Y: 0.2738659083843231
+        Z: -1.1789332628250122
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -259,5 +276,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1069
-  X: 193
-  Y: 124
+  X: 643
+  Y: 79

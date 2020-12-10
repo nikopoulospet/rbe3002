@@ -235,9 +235,9 @@ class PathPlanner:
                                 None in case of error.
         """
         rospy.loginfo("Requesting the map")
-        rospy.wait_for_service('dynamic_map')
+        rospy.wait_for_service('static_map')
         try:
-            map_service = rospy.ServiceProxy('dynamic_map', GetMap)
+            map_service = rospy.ServiceProxy('static_map', GetMap)
             responce = map_service()
             return responce.map
         except rospy.ServiceException as e:
